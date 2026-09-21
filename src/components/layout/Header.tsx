@@ -12,8 +12,13 @@ import {
   Newspaper,
   Award,
   Sparkles,
+  LogIn,
+  User,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { Storage } from '../../lib/storage';
+import { PortalUserSession } from '../../types';
 
 interface HeaderProps {
   currentPath: string;
@@ -25,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>(() => Storage.getSettings().logoUrl || '/holynex-logo.jpg');
+  const [session, setSession] = useState<PortalUserSession | null>(() => Storage.getPortalSession());
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,6 +53,19 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
     return () => window.removeEventListener('holynex_settings_updated', handleSettingsUpdate);
   }, []);
 
+  // Synchronize portal session on storage events
+  useEffect(() => {
+    const checkSession = () => {
+      setSession(Storage.getPortalSession());
+    };
+    window.addEventListener('storage', checkSession);
+    const interval = setInterval(checkSession, 2000);
+    return () => {
+      window.removeEventListener('storage', checkSession);
+      clearInterval(interval);
+    };
+  }, []);
+
   const navLinks = [
     { path: '/', labelBn: 'হোম', labelEn: 'Home', icon: Building },
     { path: '/about', labelBn: 'আমাদের সম্পর্কে', labelEn: 'About Us', icon: Award },
@@ -61,6 +80,32 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
     navigate(path);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    Storage.clearPortalSession();
+    setSession(null);
+    navigate('/');
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'dealer':
+        return t('ডিলার', 'Dealer');
+      case 'sub_dealer':
+        return t('সাব-ডিলার', 'Sub-Dealer');
+      case 'worker':
+        return t('কর্মী', 'Worker');
+      case 'customer':
+        return t('গ্রাহক', 'Customer');
+      default:
+        return t('পোর্টাল', 'Portal');
+    }
   };
 
   return (
@@ -178,6 +223,40 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
               </button>
             </div>
 
+            {/* Login / User Portal Pill Button */}
+            {session ? (
+              <div className="flex items-center gap-1.5 bg-slate-900 border border-amber-500/40 rounded-full pl-3 pr-1 py-1">
+                <button
+                  id="btn-header-user-portal"
+                  onClick={() => handleNav(`/portal/${session.role}`)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-white"
+                  title={t('আমার পোর্টাল', 'My Portal')}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="max-w-[100px] truncate">{session.name.split(' ')[0]}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    {getRoleLabel(session.role)}
+                  </span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="p-1 text-slate-400 hover:text-red-400 rounded-full hover:bg-slate-800 transition-colors"
+                  title={t('লগআউট', 'Sign Out')}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                id="btn-header-login"
+                onClick={() => handleNav('/login')}
+                className="border border-amber-500/40 bg-slate-900/80 hover:bg-amber-500/15 text-amber-300 hover:text-white px-3.5 sm:px-4 py-2 rounded-full text-xs font-bold transition-all backdrop-blur-md flex items-center gap-1.5 shadow-sm"
+              >
+                <LogIn className="w-3.5 h-3.5 text-amber-400" />
+                <span>{t('লগইন', 'Login')}</span>
+              </button>
+            )}
+
             {/* Check Status Pill Button */}
             <button
               id="btn-header-check-status"
@@ -213,6 +292,53 @@ export const Header: React.FC<HeaderProps> = ({ currentPath, navigate }) => {
         {/* Responsive Full Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="bg-slate-950/98 border-b border-amber-500/30 shadow-2xl px-4 sm:px-8 py-6 animate-in slide-in-from-top-3 duration-200 text-white backdrop-blur-xl">
+            {/* Quick Access to Portal / Login in Mobile Drawer */}
+            <div className="max-w-7xl mx-auto mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+              {session ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white">{session.name}</div>
+                      <div className="text-[10px] text-amber-400">{getRoleLabel(session.role)} {t('পোর্টাল', 'Portal')}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleNav(`/portal/${session.role}`)}
+                      className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl"
+                    >
+                      {t('ড্যাশবোর্ড', 'Dashboard')}
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="p-1.5 text-red-400 hover:bg-slate-800 rounded-lg"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-amber-400" />
+                    <div>
+                      <div className="text-xs font-bold text-white">{t('রোল-বেজড ইউজার পোর্টাল', 'Role-Based User Portal')}</div>
+                      <div className="text-[10px] text-slate-400">{t('ডিলার • সাব-ডিলার • কর্মী • গ্রাহক', 'Dealer • Sub-Dealer • Worker • Customer')}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleNav('/login')}
+                    className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-md"
+                  >
+                    {t('লগইন করুন', 'Sign In')}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {navLinks.map((link) => {
                 const isActive = currentPath === link.path;

@@ -21,7 +21,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ navigate }) => {
   const { t } = useLanguage();
 
   return (
-    <div className="py-14 bg-slate-50 min-h-screen">
+    <div id="about" className="py-14 bg-slate-50 min-h-screen scroll-mt-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 space-y-16">
         {/* Hero Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
@@ -75,7 +75,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ navigate }) => {
         </div>
 
         {/* Mission & Vision */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div id="mission" className="grid grid-cols-1 md:grid-cols-2 gap-8 scroll-mt-24">
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200/80 space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center">
               <Target className="w-6 h-6" />
@@ -104,6 +104,96 @@ export const AboutView: React.FC<AboutViewProps> = ({ navigate }) => {
                 'To establish an authorized, digitally integrated Holynex dealer point in every upazila, building the largest transparent consumer network in the nation.'
               )}
             </p>
+          </div>
+        </div>
+
+        {/* Executive Leadership: Chairman & CEO */}
+        <div className="space-y-8">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full uppercase tracking-wider">
+              <Users className="w-3.5 h-3.5" />
+              {t('শীর্ষ পরিচালনা পর্ষদ', 'Executive Leadership')}
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950">
+              {t('চেয়ারম্যান ও ব্যবস্থাপনা পরিচালকের বার্তা', 'Messages from Chairman & CEO')}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500">
+              {t('একটি সমৃদ্ধ ও স্বনির্ভর বাংলাদেশ গড়ার দূরদর্শী নেতৃত্ব', 'Visionary leadership dedicated to national economic development')}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Chairman Profile */}
+            <div id="chairman" className="bg-white rounded-3xl p-8 shadow-md border border-slate-200/90 space-y-6 scroll-mt-24 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-900 border-2 border-amber-400 shrink-0 shadow-md">
+                    <img
+                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80"
+                      alt="Chairman Holynex Group"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                      {t('চেয়ারম্যান মহোদয়ের বাণী', "Chairman's Address")}
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-950 mt-1">
+                      {t('মরহুম আব্দুল খালেক মোল্লা (প্রতিষ্ঠাতা চেয়ারম্যান)', 'Founding Chairman, Holynex Group')}
+                    </h3>
+                    <p className="text-xs text-slate-500">{t('হোলিনেক্স গ্রুপ বাংলাদেশ', 'Holynex Group Bangladesh')}</p>
+                  </div>
+                </div>
+
+                <blockquote className="text-xs sm:text-sm text-slate-600 leading-relaxed italic border-l-2 border-amber-500 pl-4">
+                  "{t(
+                    'ব্যবসার মূল ভিত্তি হচ্ছে বিশ্বস্ততা ও মানুষের সেবা। মধ্যবিত্ত ও শ্রমজীবী মানুষ যাতে কোনো প্রকার শোষণ ছাড়াই সম্মানজনকভাবে প্রয়োজনীয় আসবাব ও খাদ্য সামগ্রী সংগ্রহ করতে পারে—সে উদ্দেশ্যেই হোলিনেক্স গ্রুপের যাত্রা। আমরা প্রতিটি নাগরিকের মুখে হাসি ফোটাতে অঙ্গীকারবদ্ধ।',
+                    'The cornerstone of true enterprise is uncompromised trust and genuine service to the people. Holynex Group was established so that every family can access quality provisions and household essentials without extortion.'
+                  )}"
+                </blockquote>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold text-slate-700">{t('দায়িত্বশীল করপোরেট সংস্কৃতি', 'Ethical Corporate Leadership')}</span>
+                <ShieldCheck className="w-4 h-4 text-amber-500" />
+              </div>
+            </div>
+
+            {/* CEO Profile */}
+            <div id="ceo" className="bg-white rounded-3xl p-8 shadow-md border border-slate-200/90 space-y-6 scroll-mt-24 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-900 border-2 border-amber-400 shrink-0 shadow-md">
+                    <img
+                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80"
+                      alt="CEO & Managing Director"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                      {t('প্রধান নির্বাহী ও ব্যবস্থাপনা পরিচালক', 'CEO & Managing Director')}
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-950 mt-1">
+                      {t('ইঞ্জি. মো: কামরুল হাসান', 'Engr. Md. Kamrul Hasan')}
+                    </h3>
+                    <p className="text-xs text-slate-500">{t('ব্যবস্থাপনা পরিচালক, হোলিনেক্স গ্রুপ', 'Managing Director & CEO')}</p>
+                  </div>
+                </div>
+
+                <blockquote className="text-xs sm:text-sm text-slate-600 leading-relaxed italic border-l-2 border-blue-500 pl-4">
+                  "{t(
+                    'প্রযুক্তি ও ডিজিটাল সাপ্লাই চেইনকে কাজে লাগিয়ে আমরা দেশের প্রতিটি ইউনিয়নে ডিলার নেটওয়ার্ক পৌঁছে দিচ্ছি। ফেয়ার প্রাইস কার্ড ও স্বচ্ছ কিস্তির সংমিশ্রণে আমরা আধুনিক গ্রাহকসেবাকে নতুন উচ্চতায় নিয়ে যাচ্ছি। আমাদের সাথে যুক্ত হওয়ার জন্য সকল ডিলার ও গ্রাহকদের আন্তরিক আমন্ত্রণ।',
+                    'Leveraging modern cloud logistics and digital distribution, we are expanding our transparent authorized dealer points across the nation. We welcome consumers and visionary entrepreneurs to join our growing network.'
+                  )}"
+                </blockquote>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold text-slate-700">{t('ডিজিটাল সাপ্লাই চেইন সম্প্রসারণ', 'Digital Supply Chain Vision')}</span>
+                <Award className="w-4 h-4 text-blue-500" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -146,7 +236,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ navigate }) => {
         </div>
 
         {/* Corporate Address Bar */}
-        <div className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div id="contact" className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 scroll-mt-24">
           <div className="space-y-2">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
               {t('প্রধান কার্যালয়', 'Corporate Head Office')}

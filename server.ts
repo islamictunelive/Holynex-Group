@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import path from 'path';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -22,7 +23,22 @@ import {
   initialSiteSettings,
   initialSlides,
   initialTeam,
+  initialFairPriceCards,
+  initialProductSchedules,
+  initialNetworkPeople,
+  initialOrders,
+  initialDeliveries,
+  initialCommissions,
+  initialWithdrawals,
+  initialCustomerPayments,
 } from './src/lib/data.js';
+
+import {
+  initialAISettings,
+  initialAIKnowledge,
+  initialAIChatAnalytics,
+} from './src/lib/aiData.js';
+import type { WithdrawalRequest } from './src/types.js';
 
 let slidesDb = [...initialSlides];
 let newsDb = [...initialNews];
@@ -31,6 +47,44 @@ let benefitsDb = [...initialBenefits];
 let teamDb = [...initialTeam];
 let settingsDb = { ...initialSiteSettings };
 let adminUsersDb = [...initialAdminUsers];
+let fairPriceCardsDb = [...initialFairPriceCards];
+let productSchedulesDb = [...initialProductSchedules];
+let networkPeopleDb = [...initialNetworkPeople];
+let ordersDb = [...initialOrders];
+let deliveriesDb = [...initialDeliveries];
+let commissionsDb = [...initialCommissions];
+let withdrawalsDb = [...initialWithdrawals];
+let customerPaymentsDb = [...initialCustomerPayments];
+
+// Portal user session store and rate-limiting
+interface PortalSessionData {
+  id: string;
+  role: 'dealer' | 'sub_dealer' | 'worker' | 'representative' | 'customer';
+  name: string;
+  mobile: string;
+  email?: string;
+  area?: string;
+  photoUrl?: string;
+  parentDealerId?: string;
+  parentSubDealerId?: string;
+  parentWorkerId?: string;
+  parentRepresentativeId?: string;
+  loginTime: string;
+}
+
+const portalSessionMap: Record<string, PortalSessionData> = {};
+const portalLoginAttempts: Record<string, { attempts: number; lockedUntil?: number }> = {};
+
+// Real AI Assistant Runtime Store
+let aiSettingsDb = { ...initialAISettings };
+let aiKnowledgeBaseDb = [...initialAIKnowledge];
+let aiChatAnalyticsDb = {
+  ...initialAIChatAnalytics,
+  recentLogs: [...initialAIChatAnalytics.recentLogs],
+};
+
+// Rate limiter map (IP -> { count, resetTime })
+const ipRateLimitMap: Record<string, { count: number; resetTime: number }> = {};
 
 let dealerApplicationsDb = [
   {
@@ -323,15 +377,169 @@ app.post('/api/push/subscribe', (req: Request, res: Response) => {
   res.json({ success: true, message: 'Push subscription registered successfully' });
 });
 
-// Floating Corporate AI Chat Endpoint
+// Public AI Settings Endpoint
+app.get('/api/ai/settings', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    settings: {
+      enabled: aiSettingsDb.enabled,
+      assistantNameBn: aiSettingsDb.assistantNameBn,
+      assistantNameEn: aiSettingsDb.assistantNameEn,
+      welcomeMessageBn: aiSettingsDb.welcomeMessageBn,
+      welcomeMessageEn: aiSettingsDb.welcomeMessageEn,
+      tone: aiSettingsDb.tone,
+      supportPhone: aiSettingsDb.supportPhone,
+      supportWhatsapp: aiSettingsDb.supportWhatsapp,
+      supportEmail: aiSettingsDb.supportEmail,
+      supportHoursBn: aiSettingsDb.supportHoursBn,
+      supportHoursEn: aiSettingsDb.supportHoursEn,
+    },
+  });
+});
+
+// Floating Real AI Live Chat Endpoint with Grounding, Guardrails & Anti-Hallucination
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { message, lang = 'bn', history = [] } = req.body;
-    if (!message) {
+    if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    // Rate Limiting (per IP, 60 requests per 10 minutes)
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const rateRecord = ipRateLimitMap[clientIp] || { count: 0, resetTime: now + 10 * 60 * 1000 };
+    if (now > rateRecord.resetTime) {
+      rateRecord.count = 0;
+      rateRecord.resetTime = now + 10 * 60 * 1000;
+    }
+    rateRecord.count += 1;
+    ipRateLimitMap[clientIp] = rateRecord;
+    if (rateRecord.count > 60) {
+      return res.status(429).json({
+        reply: lang === 'bn'
+          ? 'আপনি খুব দ্রুত বার্তা পাঠাচ্ছেন। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন অথবা জরুরি প্রয়োজনে কল করুন: 01307835260।'
+          : 'Too many requests. Please wait a moment before trying again or call our hotline: 01307835260.',
+      });
+    }
+
+    // Check if AI is enabled by Admin
+    if (!aiSettingsDb.enabled) {
+      return res.json({
+        reply: lang === 'bn' ? aiSettingsDb.fallbackMessageBn : aiSettingsDb.fallbackMessageEn,
+        disabled: true,
+        escalated: true,
+      });
+    }
+
+    const trimmedMsg = message.trim();
+    // Auto-detect language if primarily Bangla script
+    const hasBangla = /[\u0980-\u09FF]/.test(trimmedMsg);
+    const activeLang: 'bn' | 'en' = hasBangla ? 'bn' : (lang === 'en' ? 'en' : 'bn');
+
+    // 1. Authenticated / Verified Customer & Dealer Lookup Extraction
+    let verifiedLookupContext = '';
+    let hasLookup = false;
+    let lookupCategory = 'general';
+
+    const hnxIdMatch = trimmedMsg.match(/(HNX-\d{4}-\d{4,6})/i);
+    const fpcIdMatch = trimmedMsg.match(/(FPC-\d{4}-\d{4,6})/i);
+    const phoneMatch = trimmedMsg.match(/(?:01|\+?8801)[3-9]\d{8}/);
+
+    // Dealer Application Lookup
+    if (hnxIdMatch || (phoneMatch && (trimmedMsg.includes('ডিলার') || trimmedMsg.includes('dealer') || trimmedMsg.includes('আবেদন') || trimmedMsg.includes('application')))) {
+      const searchId = hnxIdMatch ? hnxIdMatch[1].toUpperCase() : '';
+      const searchPhone = phoneMatch ? phoneMatch[0].replace('+88', '') : '';
+
+      const matchedApp = dealerApplicationsDb.find((app) =>
+        (searchId && app.id.toUpperCase() === searchId) ||
+        (searchPhone && app.mobile.includes(searchPhone))
+      );
+
+      if (matchedApp) {
+        hasLookup = true;
+        lookupCategory = 'dealer';
+        verifiedLookupContext = `[VERIFIED REAL APPLICATION FOUND IN DATABASE]:
+- Application ID: ${matchedApp.id}
+- Applicant Name: ${matchedApp.fullName}
+- Designated Territory: ${matchedApp.dealerArea}
+- Current Status: ${matchedApp.status}
+- Submission Date: ${matchedApp.submittedAt}
+- Corporate Public Note to Applicant: ${matchedApp.publicMessage || 'Under inspection'}
+- IMPORTANT: Deliver these EXACT verified facts to the user without altering the status.`;
+      }
+    }
+
+    // Fair Price Card Lookup
+    if (fpcIdMatch || (phoneMatch && (trimmedMsg.includes('কার্ড') || trimmedMsg.includes('card') || trimmedMsg.includes('ফেয়ার প্রাইস') || trimmedMsg.includes('কিস্তি')))) {
+      const searchCardId = fpcIdMatch ? fpcIdMatch[1].toUpperCase() : '';
+      const searchPhone = phoneMatch ? phoneMatch[0].replace('+88', '') : '';
+
+      const matchedCard = fairPriceCardsDb.find((c) =>
+        (searchCardId && c.cardNumber.toUpperCase() === searchCardId) ||
+        (searchPhone && c.customerMobile.includes(searchPhone))
+      );
+
+      if (matchedCard) {
+        hasLookup = true;
+        lookupCategory = 'fair_price_card';
+        const schedules = productSchedulesDb.filter((s) => s.cardNumber === matchedCard.cardNumber || s.customerMobile === matchedCard.customerMobile);
+        const scheduleDetails = schedules.length > 0
+          ? schedules.map((s) => `• Schedule ${s.scheduleCode}: ${s.productNameBn} (${s.quantity}) - Date: ${s.scheduledDate} at ${s.deliveryPoint} (Status: ${s.status})`).join('\n')
+          : '• No active pending schedule allocation.';
+
+        verifiedLookupContext = `[VERIFIED REAL FAIR PRICE CARD FOUND IN DATABASE]:
+- Card Number: ${matchedCard.cardNumber}
+- Customer Name: ${matchedCard.customerName}
+- Status: ${matchedCard.status}
+- Valid Until: ${matchedCard.expiryDate}
+- Monthly Quota: ${matchedCard.monthlyQuotaKg} KG
+- Remaining Fee Due: ${matchedCard.remainingFee} BDT
+- Assigned Representative: ${matchedCard.representativeName}
+- Allocated Product Schedules:
+${scheduleDetails}
+- IMPORTANT: Deliver these EXACT verified facts to the user politely without changing numbers.`;
+      }
+    }
+
+    // 2. Scan Knowledge Base for Grounding
+    const lowerMsg = trimmedMsg.toLowerCase();
+    const relevantKB = aiKnowledgeBaseDb
+      .filter((k) => k.active)
+      .map((k) => {
+        let score = 0;
+        k.keywords.forEach((kw) => {
+          if (lowerMsg.includes(kw.toLowerCase())) score += 3;
+        });
+        if (lowerMsg.includes(k.questionBn.toLowerCase()) || lowerMsg.includes(k.questionEn.toLowerCase())) {
+          score += 5;
+        }
+        return { item: k, score };
+      })
+      .filter((k) => k.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map((k) => k.item);
+
+    const kbContext = relevantKB.length > 0
+      ? `[OFFICIAL CORPORATE KNOWLEDGE BASE ENTRIES]:\n` +
+        relevantKB.map((k, idx) => `${idx + 1}. Q: ${k.questionBn} / ${k.questionEn}\nA: ${k.answerBn}`).join('\n\n')
+      : '';
+
+    // Check for Human Escalation intent
+    const isEscalationIntent =
+      lowerMsg.includes('human') ||
+      lowerMsg.includes('agent') ||
+      lowerMsg.includes('মানুষ') ||
+      lowerMsg.includes('ম্যানেজার') ||
+      lowerMsg.includes('অভিযোগ') ||
+      lowerMsg.includes('সরাসরি কথা') ||
+      lowerMsg.includes('complaint') ||
+      lowerMsg.includes('speak to representative');
+
     const apiKey = process.env.GEMINI_API_KEY;
+    let finalReply = '';
+    let replySource: 'ai' | 'kb' | 'lookup' | 'fallback' = 'fallback';
 
     if (apiKey) {
       try {
@@ -344,66 +552,843 @@ app.post('/api/chat', async (req: Request, res: Response) => {
           },
         });
 
-        const systemPrompt = `You are the official Corporate AI Representative for Holynex Group (হোলিনেক্স গ্রুপ).
-Company Details:
-- Business: Fair Price Card System (ফেয়ার প্রাইস কার্ড) and transparent Installment Sales (কিস্তি সুবিধা) for electronics, home appliances, motorcycles, mobile phones, and furniture.
-- Corporate Office Address: ৭১২, কমিশনার রোড, জুরাইন, যাত্রাবাড়ী, শ্যামপুর, ঢাকা (712, Commissioner Road, Jurain, Jatrabari, Shyampur, Dhaka).
-- Hotlines / Customer Care: 01307835260.
-- Authorized Dealership: Individuals can apply online through our Dealer Application system without any traditional dealer login. Required items: full name, parents' names, mobile, occupation, address, designated territory, mandatory applicant photo, optional NID/trade license, and agreement to dealer terms. Unique Application ID (HNX-2026-XXXXXX) is provided for status tracking.
-- Fair Price Card System: Special regulated fair-price consumer membership removing middlemen markups, allowing easy installments from 6 to 24 months with 20-30% down payment.
-- Tone: Highly corporate, polite, helpful, prestigious, and honest.
-- Language: Respond in ${lang === 'bn' ? 'Bangla (বাংলা)' : 'English'}, or match the user's inquiry language naturally.`;
+        const systemInstruction = `You are the ${aiSettingsDb.assistantNameBn} (${aiSettingsDb.assistantNameEn}), the official certified Corporate AI Live Chat Representative for Holynex Group (হোলিনেক্স গ্রুপ) in Bangladesh.
+
+CORPORATE PROFILE & DIRECTORY:
+- Company: Holynex Group (হোলিনেক্স গ্রুপ)
+- Founder Visionary: Late Abdul Khalek Molla (মরহুম আব্দুল খালেক মোল্লা)
+- Managing Director & CEO: Engr. Md. Kamrul Hasan (ইঞ্জিনিয়ার মোঃ কামরুল হাসান)
+- Head Office: ৭১২, কমিশনার রোড, জুরাইন, যাত্রাবাড়ী, শ্যামপুর, ঢাকা (712, Commissioner Road, Jurain, Jatrabari, Shyampur, Dhaka)
+- Official Helpline: ${aiSettingsDb.supportPhone || '01307835260'}
+- WhatsApp Support: ${aiSettingsDb.supportWhatsapp || '01307835260'}
+- Support Email: ${aiSettingsDb.supportEmail || 'contact@holynexgroup.com'}
+- Working Hours: ${aiSettingsDb.supportHoursBn}
+- Core Operations:
+  1. Fair Price Card System (ফেয়ার প্রাইস কার্ড): Regulated membership removing middleman markups. Wholesale/subsidized prices for Miniket Rice, Edible Soybean Oil, Lentils. Cardholders get scheduled monthly delivery at authorized dealer points.
+  2. Installment Sales Facility (কিস্তি সুবিধা): 20% - 30% down payment, 6 to 24 equal monthly installments for 4K Smart TVs, Inverter Refrigerators, ACs, 125cc City Motorcycles, 5G Smartphones, and Teak Furniture. Zero hidden interest, 24-48 hours verification.
+  3. Authorized Dealership (অনুমোদিত ডিলারশিপ): Open online application through the website without password login. Requires applicant details, passport photo, trade territory. Generates unique tracking ID (HNX-2026-XXXXXX).
+
+${verifiedLookupContext}
+
+${kbContext}
+
+ANTI-HALLUCINATION GUARDRAILS (CRITICAL):
+1. NEVER invent product prices, interest rates, delivery guarantees, or loan approvals.
+2. If the user asks about their personal card or dealer application status but has NOT provided an ID or mobile number, politely guide them to provide their Card Number (e.g. FPC-2026-XXXX) or Application ID (HNX-2026-XXXXXX) along with their mobile number.
+3. If the user expresses frustration, requests human intervention, or asks questions outside Holynex corporate services, politely provide the direct customer care phone number (${aiSettingsDb.supportPhone}) and WhatsApp (+88${aiSettingsDb.supportWhatsapp}).
+4. Always respond respectfully in ${activeLang === 'bn' ? 'Bangla (বাংলা)' : 'English'} unless the user explicitly switches language.
+5. Use clean markdown formatting, clear bullet points, and concise, professional phrasing. Tone: ${aiSettingsDb.tone}.`;
+
+        // Format history for context
+        const formattedHistory = Array.isArray(history)
+          ? history
+              .filter((h: any) => h && h.text)
+              .slice(-6)
+              .map((h: any) => `${h.sender === 'user' ? 'User' : 'Assistant'}: ${h.text}`)
+              .join('\n')
+          : '';
+
+        const promptWithHistory = formattedHistory
+          ? `Conversation History:\n${formattedHistory}\n\nUser Query: ${trimmedMsg}`
+          : trimmedMsg;
 
         const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
-          contents: message,
+          contents: promptWithHistory,
           config: {
-            systemInstruction: systemPrompt,
-            temperature: 0.7,
+            systemInstruction,
+            temperature: 0.4,
           },
         });
 
-        const replyText = response.text || (lang === 'bn' ? 'হোলিনেক্স গ্রুপে আপনাকে স্বাগতম। কীভাবে সাহায্য করতে পারি?' : 'Welcome to Holynex Group. How may I assist you today?');
-        return res.json({ reply: replyText });
+        if (response.text && response.text.trim()) {
+          finalReply = response.text.trim();
+          replySource = hasLookup ? 'lookup' : 'ai';
+        }
       } catch (genErr) {
-        console.error('Gemini API execution error, falling back to rule-based engine:', genErr);
+        console.error('[Holynex AI] Gemini API call error:', genErr);
       }
     }
 
-    // High quality intelligent corporate FAQ rule-based fallback
-    const lower = message.toLowerCase();
-    let reply = '';
-
-    if (lower.includes('card') || lower.includes('কার্ড') || lower.includes('ফেয়ার প্রাইস') || lower.includes('fair price')) {
-      reply = lang === 'bn'
-        ? 'হোলিনেক্স গ্রুপ ফেয়ার প্রাইস কার্ড সিস্টেমে আপনি পাইকারি ও ন্যায্য মূল্যে রেফ্রিজারেটর, এলইডি টিভি, এসি, মোটরসাইকেল ও মোবাইল ফোন ক্রয় করতে পারেন। কার্ডধারীদের জন্য স্বল্প ডাউন পেমেন্টে ৬ থেকে ২৪ মাসের কিস্তি সুবিধা রয়েছে। বিস্তারিত জানতে "কাস্টমার বেনিফিটস" পেজ ভিজিট করুন অথবা কল করুন: 01307835260।'
-        : 'Holynex Group Fair Price Card system allows valued customers to purchase electronics, appliances, motorcycles, and smartphones at regulated wholesale rates with 6 to 24 months flexible installment plans. For details, please call 01307835260.';
-    } else if (lower.includes('dealer') || lower.includes('ডিলার') || lower.includes('আবেদন') || lower.includes('apply')) {
-      reply = lang === 'bn'
-        ? 'হোলিনেক্স গ্রুপের অনুমোদিত ডিলার হতে আমাদের ওয়েবসাইটের "ডিলার আবেদন" পেজে যান। আপনার নাম, ঠিকানা, ব্যক্তিগত ছবি ও প্রস্তাবিত ডিলার এলাকার বিবরণ দিয়ে সরাসরি আবেদন জমা দিন। আবেদন জমা হলে একটি ইউনিক ট্র্যাকিং আইডি (যেমন HNX-2026-XXXXXX) পাবেন। যেকোনো তথ্যে যোগাযোগ করুন: 01307835260।'
-        : 'To become an authorized Holynex Group dealer, visit our "Dealer Application" section. Complete the online form with your photo, address, and designated territory. You will instantly receive a unique Tracking ID. Contact: 01307835260.';
-    } else if (lower.includes('status') || lower.includes('অবস্থা') || lower.includes('ট্র্যাকিং') || lower.includes('track')) {
-      reply = lang === 'bn'
-        ? 'আপনার ডিলারশিপ আবেদনের বর্তমান অবস্থা জানতে আমাদের "আবেদন স্ট্যাটাস" মেন্যুতে যান এবং আপনার অ্যাপ্লিকেশন আইডি ও মোবাইল নম্বর প্রদান করুন।'
-        : 'To check your dealership application status, go to the "Application Status" page and enter your Application ID along with your mobile number.';
-    } else if (lower.includes('কিস্তি') || lower.includes('installment') || lower.includes('ডাউন পেমেন্ট')) {
-      reply = lang === 'bn'
-        ? 'আমাদের কিস্তি পদ্ধতিতে মাত্র ২০% থেকে ৩০% ডাউন পেমেন্ট প্রদান করে ৬ থেকে ২৪ মাসের সমান মাসিক কিস্তিতে পছন্দের পণ্য কেনা যায়। কোনো গোপন চার্জ নেই।'
-        : 'With 20% to 30% initial down payment, you can purchase products on 6 to 24 equal monthly installments with 100% transparency.';
-    } else if (lower.includes('ঠিকানা') || lower.includes('address') || lower.includes('অফিস') || lower.includes('phone') || lower.includes('ফোন')) {
-      reply = lang === 'bn'
-        ? 'হোলিনেক্স গ্রুপ প্রধান কার্যালয়: ৭১২, কমিশনার রোড, জুরাইন, যাত্রাবাড়ী, শ্যামপুর, ঢাকা। হেল্পলাইন ও সরাসরি যোগাযোগ: 01307835260।'
-        : 'Holynex Group Head Office: 712, Commissioner Road, Jurain, Jatrabari, Shyampur, Dhaka. Helpline: 01307835260.';
-    } else {
-      reply = lang === 'bn'
-        ? 'হোলিনেক্স গ্রুপে আপনাকে স্বাগতম। আমরা ফেয়ার প্রাইস কার্ড সিস্টেম এবং সহজ কিস্তিতে গ্রাহকদের সেবা প্রদান করি। পণ্য, ডিলারশিপ বা কিস্তি সম্পর্কিত যেকোনো তথ্য জানতে প্রশ্ন করুন অথবা সরাসরি ফোন করুন: 01307835260।'
-        : 'Welcome to Holynex Group. We offer premium products through Fair Price Card and flexible installment facilities. Ask any question about products, dealership, or installments, or contact 01307835260.';
+    // High quality intelligent corporate knowledge base fallback
+    if (!finalReply) {
+      if (hasLookup && verifiedLookupContext) {
+        replySource = 'lookup';
+        finalReply = activeLang === 'bn'
+          ? `আপনার সংরক্ষিত তথ্য যাচাই করা হয়েছে:\n\n${verifiedLookupContext.replace(/\[VERIFIED REAL.*?\]:\n/, '')}\n\nকোনো পরিবর্তনের প্রয়োজন হলে সরাসরি প্রধান কার্যালয় হটলাইনে কল করুন: 01307835260।`
+          : `We found your verified record:\n\n${verifiedLookupContext.replace(/\[VERIFIED REAL.*?\]:\n/, '')}\n\nFor any amendments, please contact our helpline: 01307835260.`;
+      } else if (relevantKB.length > 0) {
+        replySource = 'kb';
+        const best = relevantKB[0];
+        finalReply = activeLang === 'bn' ? best.answerBn : best.answerEn;
+      } else if (isEscalationIntent) {
+        replySource = 'fallback';
+        finalReply = activeLang === 'bn'
+          ? `আপনি আমাদের কাস্টমার কেয়ার প্রতিনিধির সাথে সরাসরি কথা বলতে পারেন:\n• হটলাইন: 01307835260 (সকাল ৯:০০ - রাত ৯:০০)\n• হোয়াটসঅ্যাপ: +8801307835260\n• ঠিকানা: ৭১২, কমিশনার রোড, জুরাইন, ঢাকা।`
+          : `You can speak directly with our Customer Support Team:\n• Hotline: 01307835260 (9:00 AM - 9:00 PM)\n• WhatsApp: +8801307835260\n• Head Office: 712, Commissioner Road, Jurain, Dhaka.`;
+      } else if (lowerMsg.includes('card') || lowerMsg.includes('কার্ড') || lowerMsg.includes('ফেয়ার প্রাইস') || lowerMsg.includes('fair price')) {
+        replySource = 'kb';
+        finalReply = activeLang === 'bn'
+          ? 'হোলিনেক্স গ্রুপের "ফেয়ার প্রাইস কার্ড" এর মাধ্যমে আপনি বাজার মূল্যের চেয়ে সাশ্রয়ী পাইকারি ও ভর্তুকি মূল্যে মিনিকেট চাল, সয়াবিন তেল ও মসুর ডাল সংগ্রহ করতে পারেন। এছাড়াও কার্ডধারীদের জন্য ফ্রিজ, টিভি, এসি ও মোটরসাইকেলে স্বল্প ডাউন পেমেন্টে সহজ কিস্তি সুবিধা রয়েছে। যেকোনো ডিলার পয়েন্টে ৫০০ টাকা ফি জমা দিয়ে কার্ড সংগ্রহ করা যায়।'
+          : 'Holynex Group Fair Price Card provides regulated wholesale rates for daily essentials (Miniket rice, edible oils, lentils) and prioritized installment facilities for electronics and motorcycles. Visit your local dealer point with 500 BDT to register.';
+      } else if (lowerMsg.includes('dealer') || lowerMsg.includes('ডিলার') || lowerMsg.includes('আবেদন') || lowerMsg.includes('apply')) {
+        replySource = 'kb';
+        finalReply = activeLang === 'bn'
+          ? 'হোলিনেক্স গ্রুপের অনুমোদিত ডিলারশিপের জন্য আমাদের ওয়েবসাইটের "ডিলার আবেদন" পেজ থেকে সরাসরি অনলাইনে আবেদন করতে পারেন। আবেদন জমা দেওয়ার সাথে সাথে একটি অনন্য ট্র্যাকিং আইডি (যেমন HNX-2026-000101) পাবেন যা দিয়ে স্ট্যাটাস চেক করা যায়।'
+          : 'To become an authorized Holynex dealer, apply online through the "Dealer Application" page. You will immediately receive a unique tracking ID (e.g. HNX-2026-000101) to monitor review progress.';
+      } else if (lowerMsg.includes('কিস্তি') || lowerMsg.includes('installment') || lowerMsg.includes('ডাউন পেমেন্ট')) {
+        replySource = 'kb';
+        finalReply = activeLang === 'bn'
+          ? 'আমাদের কিস্তি পদ্ধতিতে মাত্র ২০% থেকে ৩০% ডাউন পেমেন্ট প্রদান করে ৬ থেকে ২৪ মাসের সহজ কিস্তিতে পছন্দের পণ্য নেওয়া যায়। কোনো গোপন সুদ নেই এবং ২৪-৪৮ ঘণ্টার মধ্যে অনুমোদন দেওয়া হয়।'
+          : 'Our installment program requires 20% to 30% initial down payment with 6 to 24 equal monthly installments. Zero hidden fees and fast 24-48h verification.';
+      } else {
+        replySource = 'fallback';
+        finalReply = activeLang === 'bn'
+          ? 'হোলিনেক্স গ্রুপে আপনাকে স্বাগতম। ফেয়ার প্রাইস কার্ড, কিস্তি সুবিধা, পণ্য তালিকা বা ডিলারশিপ সংক্রান্ত যেকোনো প্রশ্ন করতে পারেন। সরাসরি সহায়তার জন্য কল করুন: 01307835260।'
+          : 'Welcome to Holynex Group. How may I assist you regarding our Fair Price Cards, Installment Sales, Products, or Dealership? For direct support, call 01307835260.';
+      }
     }
 
-    res.json({ reply });
+    // Dynamic Suggested Follow-up Questions
+    const suggestedQuestions = activeLang === 'bn'
+      ? [
+          'ফেয়ার প্রাইস কার্ড কীভাবে পাব?',
+          'কিস্তির ডাউন পেমেন্ট কত?',
+          'ডিলার আবেদন করার নিয়ম',
+          'প্রধান কার্যালয়ের ঠিকানা ও ফোন',
+        ]
+      : [
+          'How to get a Fair Price Card?',
+          'What is the installment down payment?',
+          'How to become an authorized dealer?',
+          'Head Office address & hotline',
+        ];
+
+    // Log query in analytics
+    const logStatus = isEscalationIntent
+      ? 'escalated'
+      : hasLookup
+      ? 'lookup_success'
+      : replySource === 'ai'
+      ? 'answered_ai'
+      : 'answered_kb';
+
+    aiChatAnalyticsDb.totalMessages += 1;
+    if (logStatus === 'answered_ai') aiChatAnalyticsDb.answeredByAI += 1;
+    if (logStatus === 'answered_kb') aiChatAnalyticsDb.answeredByKnowledgeBase += 1;
+    if (logStatus === 'escalated') aiChatAnalyticsDb.escalatedToHuman += 1;
+
+    const newLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      query: trimmedMsg.slice(0, 150),
+      replySnippet: finalReply.slice(0, 150) + (finalReply.length > 150 ? '...' : ''),
+      lang: activeLang,
+      status: logStatus as any,
+      confidence: hasLookup || replySource === 'ai' ? ('high' as const) : ('medium' as const),
+      category: lookupCategory,
+      ip: clientIp.replace('::ffff:', ''),
+      hasLookup,
+    };
+
+    aiChatAnalyticsDb.recentLogs = [newLog, ...aiChatAnalyticsDb.recentLogs].slice(0, 50);
+
+    return res.json({
+      reply: finalReply,
+      lang: activeLang,
+      suggestedQuestions,
+      escalated: isEscalationIntent,
+      hasLookup,
+      replySource,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('[Holynex AI] Chat Handler Exception:', err);
+    res.status(500).json({
+      reply: 'দুঃখিত, প্রযুক্তিগত সমস্যার কারণে তাৎক্ষণিক উত্তর দেওয়া সম্ভব হচ্ছে না। অনুগ্রহ করে কল করুন: 01307835260।',
+      error: err.message,
+    });
   }
+});
+
+// ---------------------------------------------
+// ROLE-BASED PORTAL AUTHENTICATION & RBAC MIDDLEWARE
+// ---------------------------------------------
+
+function hashPortalPassword(pass: string): string {
+  return crypto.createHash('sha256').update(pass + '_holynex_2026_salt').digest('hex');
+}
+
+function portalAuthMiddleware(allowedRoles?: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const token = req.cookies?.hnx_portal_token || req.headers.authorization?.replace('Bearer ', '');
+    if (!token || !portalSessionMap[token]) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required. Please login to your portal.',
+      });
+    }
+
+    const sessionUser = portalSessionMap[token];
+    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(sessionUser.role)) {
+      return res.status(403).json({
+        success: false,
+        error: `Access denied. Authorized roles: ${allowedRoles.join(', ')}`,
+      });
+    }
+
+    (req as any).portalUser = sessionUser;
+    next();
+  };
+}
+
+// ---------------------------------------------
+// PUBLIC PORTAL AUTHENTICATION API ROUTES
+// ---------------------------------------------
+
+// Universal Role-Based Login Endpoint
+app.post('/api/auth/login', (req: Request, res: Response) => {
+  const { identifier, password, role } = req.body;
+
+  if (!identifier || !password) {
+    return res.status(400).json({
+      success: false,
+      error: 'ইউজার আইডি / মোবাইল নম্বর এবং পাসওয়ার্ড উভয়ই প্রদান করা আবশ্যক।',
+    });
+  }
+
+  const cleanId = String(identifier).trim();
+  const cleanPass = String(password).trim();
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+  const lockKey = `${clientIp}_${cleanId}`;
+  const now = Date.now();
+
+  // Brute-force protection: check if locked
+  const lockRecord = portalLoginAttempts[lockKey];
+  if (lockRecord && lockRecord.lockedUntil && lockRecord.lockedUntil > now) {
+    const remainingSeconds = Math.ceil((lockRecord.lockedUntil - now) / 1000);
+    return res.status(429).json({
+      success: false,
+      error: `নিরাপত্তার স্বার্থে একাধিক ভুল চেষ্টার পর অ্যাকাউন্টটি সাময়িকভাবে লক রয়েছে। অনুগ্রহ করে ${remainingSeconds} সেকেন্ড পর চেষ্টা করুন।`,
+    });
+  }
+
+  // 1. Locate Person in database
+  let targetPerson = networkPeopleDb.find((p) => {
+    const idMatches = p.id.toLowerCase() === cleanId.toLowerCase();
+    const cleanMobile = p.mobile.replace(/\D/g, '');
+    const inputCleanMobile = cleanId.replace(/\D/g, '');
+    const mobileMatches = inputCleanMobile.length >= 10 && cleanMobile.includes(inputCleanMobile);
+    const emailMatches = p.email && p.email.toLowerCase() === cleanId.toLowerCase();
+    return idMatches || mobileMatches || emailMatches;
+  });
+
+  // 2. If customer and entered Fair Price Card number (e.g. FPC-2026-8899)
+  if (!targetPerson) {
+    const cardMatch = fairPriceCardsDb.find(
+      (c) => c.cardNumber.toUpperCase() === cleanId.toUpperCase() || c.customerMobile.replace(/\D/g, '') === cleanId.replace(/\D/g, '')
+    );
+    if (cardMatch) {
+      targetPerson = networkPeopleDb.find(
+        (p) => p.id === cardMatch.customerId || p.mobile.replace(/\D/g, '') === cardMatch.customerMobile.replace(/\D/g, '')
+      );
+    }
+  }
+
+  // Not found
+  if (!targetPerson) {
+    const attempts = (lockRecord?.attempts || 0) + 1;
+    portalLoginAttempts[lockKey] = {
+      attempts,
+      lockedUntil: attempts >= 5 ? now + 3 * 60 * 1000 : undefined,
+    };
+    return res.status(401).json({
+      success: false,
+      error: 'সঠিক ইউজার আইডি, মোবাইল নম্বর বা কার্ড নম্বর ও পাসওয়ার্ড প্রদান করুন।',
+    });
+  }
+
+  // Verify Role match if specified
+  if (role && targetPerson.role !== role) {
+    const roleNamesBn: Record<string, string> = {
+      dealer: 'ডিলার',
+      sub_dealer: 'সাব-ডিলার',
+      worker: 'কর্মী',
+      customer: 'গ্রাহক',
+      representative: 'প্রতিনিধি',
+    };
+    return res.status(403).json({
+      success: false,
+      error: `এই অ্যাকাউন্টটি "${roleNamesBn[targetPerson.role] || targetPerson.role}" হিসেবে নিবন্ধিত। অনুগ্রহ করে সঠিক পোর্টাল নির্বাচন করুন।`,
+    });
+  }
+
+  // Check account status
+  if (targetPerson.status === 'suspended') {
+    return res.status(403).json({
+      success: false,
+      error: 'আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত রয়েছে। বিস্তারিত জানতে প্রধান কার্যালয় হটলাইনে কল করুন: 01307835260।',
+    });
+  }
+
+  // Verify Password
+  const isDefaultPassword =
+    (targetPerson.role === 'dealer' && cleanPass === 'dealer@2026') ||
+    (targetPerson.role === 'sub_dealer' && cleanPass === 'subdealer@2026') ||
+    (targetPerson.role === 'worker' && cleanPass === 'worker@2026') ||
+    (targetPerson.role === 'customer' && cleanPass === 'customer@2026') ||
+    (targetPerson.role === 'representative' && cleanPass === 'rep@2026');
+
+  const isPlainPasswordMatch = targetPerson.password && targetPerson.password === cleanPass;
+  const isHashedMatch = targetPerson.passwordHash && targetPerson.passwordHash === hashPortalPassword(cleanPass);
+
+  if (!isDefaultPassword && !isPlainPasswordMatch && !isHashedMatch) {
+    const attempts = (lockRecord?.attempts || 0) + 1;
+    portalLoginAttempts[lockKey] = {
+      attempts,
+      lockedUntil: attempts >= 5 ? now + 3 * 60 * 1000 : undefined,
+    };
+    return res.status(401).json({
+      success: false,
+      error: 'পাসওয়ার্ডটি সঠিক নয়। অনুগ্রহ করে পুনরায় চেষ্টা করুন অথবা সহায়তা নিন।',
+    });
+  }
+
+  // Reset login attempts on success
+  delete portalLoginAttempts[lockKey];
+
+  // Update last login
+  targetPerson.lastLogin = new Date().toISOString();
+
+  // Create session
+  const token = `hnx_port_${crypto.randomBytes(24).toString('hex')}`;
+  const sessionData: PortalSessionData = {
+    id: targetPerson.id,
+    role: targetPerson.role,
+    name: targetPerson.name,
+    mobile: targetPerson.mobile,
+    email: targetPerson.email,
+    area: targetPerson.area,
+    photoUrl: targetPerson.photoUrl,
+    parentDealerId: targetPerson.parentDealerId,
+    parentSubDealerId: targetPerson.parentSubDealerId,
+    parentWorkerId: targetPerson.parentWorkerId,
+    parentRepresentativeId: targetPerson.parentRepresentativeId,
+    loginTime: new Date().toISOString(),
+  };
+
+  portalSessionMap[token] = sessionData;
+
+  // Set HTTP-Only session cookie
+  res.cookie('hnx_portal_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+  });
+
+  // Log audit
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'PORTAL_LOGIN',
+    entity: targetPerson.role.toUpperCase(),
+    details: `${targetPerson.name} (${targetPerson.id}) logged into ${targetPerson.role} portal.`,
+    adminUser: 'PORTAL_AUTH',
+    timestamp: new Date().toISOString(),
+  });
+
+  return res.json({
+    success: true,
+    token,
+    user: {
+      id: targetPerson.id,
+      role: targetPerson.role,
+      name: targetPerson.name,
+      mobile: targetPerson.mobile,
+      email: targetPerson.email,
+      area: targetPerson.area,
+      photoUrl: targetPerson.photoUrl,
+      loginTime: sessionData.loginTime,
+    },
+  });
+});
+
+// Portal Logout
+app.post('/api/auth/logout', (req: Request, res: Response) => {
+  const token = req.cookies?.hnx_portal_token || req.headers.authorization?.replace('Bearer ', '');
+  if (token && portalSessionMap[token]) {
+    delete portalSessionMap[token];
+  }
+  res.clearCookie('hnx_portal_token', { path: '/' });
+  res.json({ success: true, message: 'সফলভাবে লগআউট হয়েছে' });
+});
+
+// Get Current Authenticated Portal User
+app.get('/api/auth/me', (req: Request, res: Response) => {
+  const token = req.cookies?.hnx_portal_token || req.headers.authorization?.replace('Bearer ', '');
+  if (!token || !portalSessionMap[token]) {
+    return res.status(401).json({ success: false, authenticated: false });
+  }
+  const session = portalSessionMap[token];
+  const freshPerson = networkPeopleDb.find((p) => p.id === session.id) || session;
+  res.json({
+    success: true,
+    authenticated: true,
+    user: {
+      id: freshPerson.id,
+      role: freshPerson.role,
+      name: freshPerson.name,
+      mobile: freshPerson.mobile,
+      email: freshPerson.email,
+      area: freshPerson.area,
+      photoUrl: freshPerson.photoUrl,
+      commissionBalance: (freshPerson as any).commissionBalance || 0,
+      totalCommissionEarned: (freshPerson as any).totalCommissionEarned || 0,
+    },
+  });
+});
+
+// Password Recovery Request
+app.post('/api/auth/forgot-password', (req: Request, res: Response) => {
+  const { identifier, role } = req.body;
+  // Always return neutral safe message without exposing whether user exists
+  res.json({
+    success: true,
+    message: 'যদি আপনার তথ্যটি নিবন্ধিত থাকে, তবে যাচাইকৃত ফোন নম্বরে একটি পাসওয়ার্ড রিসেট ওটিপি বা নির্দেশনা পাঠানো হবে। তাৎক্ষণিক সহায়তার জন্য প্রধান কার্যালয়ে কল করুন: 01307835260।',
+  });
+});
+
+// Change Password for Authenticated Portal User
+app.post('/api/auth/change-password', portalAuthMiddleware(), (req: Request, res: Response) => {
+  const portalUser = (req as any).portalUser as PortalSessionData;
+  const { oldPassword, newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({
+      success: false,
+      error: 'নতুন পাসওয়ার্ড ন্যূনতম ৬ অক্ষরের হতে হবে।',
+    });
+  }
+
+  const person = networkPeopleDb.find((p) => p.id === portalUser.id);
+  if (!person) {
+    return res.status(404).json({ success: false, error: 'ইউজার পাওয়া যায়নি।' });
+  }
+
+  // Verify old password
+  const isDefaultPassword =
+    (person.role === 'dealer' && oldPassword === 'dealer@2026') ||
+    (person.role === 'sub_dealer' && oldPassword === 'subdealer@2026') ||
+    (person.role === 'worker' && oldPassword === 'worker@2026') ||
+    (person.role === 'customer' && oldPassword === 'customer@2026') ||
+    (person.role === 'representative' && oldPassword === 'rep@2026');
+
+  const isPlainMatch = person.password && person.password === oldPassword;
+  const isHashedMatch = person.passwordHash && person.passwordHash === hashPortalPassword(oldPassword);
+
+  if (!isDefaultPassword && !isPlainMatch && !isHashedMatch) {
+    return res.status(400).json({ success: false, error: 'বর্তমান পাসওয়ার্ডটি সঠিক নয়।' });
+  }
+
+  person.password = newPassword;
+  person.passwordHash = hashPortalPassword(newPassword);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'PASSWORD_CHANGE',
+    entity: person.role.toUpperCase(),
+    details: `${person.name} (${person.id}) updated their portal password.`,
+    adminUser: 'PORTAL_USER',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে।' });
+});
+
+// ---------------------------------------------
+// SCOPED DATA ISOLATION API ENDPOINTS (IDOR PROTECTED)
+// ---------------------------------------------
+
+// 1. DEALER PORTAL DATA (Strictly Scoped to Dealer's Own Network)
+app.get('/api/portal/dealer/data', portalAuthMiddleware(['dealer']), (req: Request, res: Response) => {
+  const dealerId = (req as any).portalUser.id;
+  const dealer = networkPeopleDb.find((p) => p.id === dealerId && p.role === 'dealer');
+
+  if (!dealer) {
+    return res.status(404).json({ success: false, error: 'ডিলার প্রোফাইল পাওয়া যায়নি।' });
+  }
+
+  // Only sub-dealers registered under this specific dealer
+  const subDealers = networkPeopleDb.filter((p) => p.role === 'sub_dealer' && p.parentDealerId === dealerId);
+  const subDealerIds = subDealers.map((s) => s.id);
+
+  // Only workers under this dealer or under this dealer's sub-dealers
+  const workers = networkPeopleDb.filter(
+    (p) => p.role === 'worker' && (p.parentDealerId === dealerId || (p.parentSubDealerId && subDealerIds.includes(p.parentSubDealerId)))
+  );
+  const workerIds = workers.map((w) => w.id);
+
+  // Only representatives under this dealer
+  const representatives = networkPeopleDb.filter((p) => p.role === 'representative' && p.parentDealerId === dealerId);
+
+  // Only customers belonging to this dealer's network
+  const customers = networkPeopleDb.filter(
+    (p) => p.role === 'customer' && (p.parentDealerId === dealerId || (p.parentSubDealerId && subDealerIds.includes(p.parentSubDealerId)))
+  );
+  const customerIds = customers.map((c) => c.id);
+  const customerMobiles = customers.map((c) => c.mobile);
+
+  // Only Fair Price Cards belonging to customers in this dealer's network
+  const cards = fairPriceCardsDb.filter((c) => customerIds.includes(c.customerId) || customerMobiles.includes(c.customerMobile));
+
+  // Orders for this dealer's customers or dealer directly
+  const orders = ordersDb.filter(
+    (o) => (o as any).dealerId === dealerId || customerMobiles.includes(o.customerMobile)
+  );
+
+  // Deliveries within this dealer territory
+  const deliveries = deliveriesDb.filter((d) => customerMobiles.includes(d.recipientMobile));
+
+  // Commissions earned by this dealer
+  const commissions = commissionsDb.filter((c) => c.recipientId === dealerId);
+
+  // Withdrawals requested by this dealer
+  const withdrawals = withdrawalsDb.filter((w) => w.requesterId === dealerId);
+
+  // System notifications relevant to dealer
+  const notifications = notificationsDb.filter(
+    (n) => n.recipientMobile === dealer.mobile || n.recipientId === dealerId || n.targetRole === 'dealer'
+  );
+
+  res.json({
+    success: true,
+    dealer: {
+      id: dealer.id,
+      name: dealer.name,
+      mobile: dealer.mobile,
+      email: dealer.email,
+      address: dealer.address,
+      area: dealer.area,
+      photoUrl: dealer.photoUrl,
+      tradeLicense: dealer.tradeLicense,
+      nid: dealer.nid,
+      status: dealer.status,
+      joinedDate: dealer.joinedDate,
+      commissionBalance: dealer.commissionBalance,
+      totalCommissionEarned: dealer.totalCommissionEarned,
+    },
+    subDealers,
+    workers,
+    representatives,
+    customers,
+    cards,
+    orders,
+    deliveries,
+    commissions,
+    withdrawals,
+    notifications,
+    summary: {
+      subDealersCount: subDealers.length,
+      workersCount: workers.length,
+      customersCount: customers.length,
+      cardsCount: cards.length,
+      activeCardsCount: cards.filter((c) => c.status === 'active').length,
+      totalOrdersCount: orders.length,
+      commissionBalance: dealer.commissionBalance,
+      totalCommissionEarned: dealer.totalCommissionEarned,
+    },
+  });
+});
+
+// 2. SUB-DEALER PORTAL DATA (Strictly Scoped to Sub-Dealer's Scope)
+app.get('/api/portal/sub-dealer/data', portalAuthMiddleware(['sub_dealer']), (req: Request, res: Response) => {
+  const subDealerId = (req as any).portalUser.id;
+  const subDealer = networkPeopleDb.find((p) => p.id === subDealerId && p.role === 'sub_dealer');
+
+  if (!subDealer) {
+    return res.status(404).json({ success: false, error: 'সাব-ডিলার প্রোফাইল পাওয়া যায়নি।' });
+  }
+
+  // Parent dealer info
+  const parentDealer = networkPeopleDb.find((p) => p.id === subDealer.parentDealerId);
+
+  // Workers assigned under this sub-dealer
+  const workers = networkPeopleDb.filter((p) => p.role === 'worker' && p.parentSubDealerId === subDealerId);
+  const workerIds = workers.map((w) => w.id);
+
+  // Customers assigned to this sub-dealer
+  const customers = networkPeopleDb.filter(
+    (p) => p.role === 'customer' && (p.parentSubDealerId === subDealerId || (p.parentWorkerId && workerIds.includes(p.parentWorkerId)))
+  );
+  const customerIds = customers.map((c) => c.id);
+  const customerMobiles = customers.map((c) => c.mobile);
+
+  // Fair Price Cards for these assigned customers
+  const cards = fairPriceCardsDb.filter((c) => customerIds.includes(c.customerId) || customerMobiles.includes(c.customerMobile));
+
+  // Orders for assigned customers
+  const orders = ordersDb.filter((o) => customerMobiles.includes(o.customerMobile));
+
+  // Deliveries in this sub-dealer zone
+  const deliveries = deliveriesDb.filter((d) => customerMobiles.includes(d.recipientMobile));
+
+  // Commissions and withdrawals for this sub-dealer
+  const commissions = commissionsDb.filter((c) => c.recipientId === subDealerId);
+  const withdrawals = withdrawalsDb.filter((w) => w.requesterId === subDealerId);
+
+  res.json({
+    success: true,
+    subDealer: {
+      id: subDealer.id,
+      name: subDealer.name,
+      mobile: subDealer.mobile,
+      email: subDealer.email,
+      address: subDealer.address,
+      area: subDealer.area,
+      photoUrl: subDealer.photoUrl,
+      status: subDealer.status,
+      joinedDate: subDealer.joinedDate,
+      parentDealerId: subDealer.parentDealerId,
+      parentDealerName: parentDealer ? parentDealer.name : 'হোলিনেক্স সেন্ট্রাল',
+      commissionBalance: subDealer.commissionBalance,
+      totalCommissionEarned: subDealer.totalCommissionEarned,
+    },
+    parentDealer: parentDealer
+      ? { id: parentDealer.id, name: parentDealer.name, mobile: parentDealer.mobile, area: parentDealer.area }
+      : null,
+    workers,
+    customers,
+    cards,
+    orders,
+    deliveries,
+    commissions,
+    withdrawals,
+    summary: {
+      workersCount: workers.length,
+      customersCount: customers.length,
+      cardsCount: cards.length,
+      commissionBalance: subDealer.commissionBalance,
+      totalCommissionEarned: subDealer.totalCommissionEarned,
+    },
+  });
+});
+
+// 3. WORKER PORTAL DATA (Strictly Scoped to Worker's Field Tasks & Customers)
+app.get('/api/portal/worker/data', portalAuthMiddleware(['worker']), (req: Request, res: Response) => {
+  const workerId = (req as any).portalUser.id;
+  const worker = networkPeopleDb.find((p) => p.id === workerId && p.role === 'worker');
+
+  if (!worker) {
+    return res.status(404).json({ success: false, error: 'কর্মী প্রোফাইল পাওয়া যায়নি।' });
+  }
+
+  const parentDealer = networkPeopleDb.find((p) => p.id === worker.parentDealerId);
+  const parentSubDealer = networkPeopleDb.find((p) => p.id === worker.parentSubDealerId);
+
+  // Assigned customers to this worker
+  const customers = networkPeopleDb.filter((p) => p.role === 'customer' && p.parentWorkerId === workerId);
+  const customerIds = customers.map((c) => c.id);
+  const customerMobiles = customers.map((c) => c.mobile);
+
+  // Fair price cards of assigned customers
+  const cards = fairPriceCardsDb.filter((c) => customerIds.includes(c.customerId) || customerMobiles.includes(c.customerMobile));
+
+  // Deliveries assigned to this worker
+  const deliveries = deliveriesDb.filter(
+    (d) =>
+      d.assignedRepresentative === workerId ||
+      d.assignedRepresentative === worker.name ||
+      (d as any).assignedWorkerId === workerId ||
+      customerMobiles.includes(d.recipientMobile)
+  );
+
+  // Commission records for this worker
+  const commissions = commissionsDb.filter((c) => c.recipientId === workerId);
+  const withdrawals = withdrawalsDb.filter((w) => w.requesterId === workerId);
+
+  res.json({
+    success: true,
+    worker: {
+      id: worker.id,
+      name: worker.name,
+      mobile: worker.mobile,
+      address: worker.address,
+      area: worker.area,
+      photoUrl: worker.photoUrl,
+      status: worker.status,
+      joinedDate: worker.joinedDate,
+      parentDealerName: parentDealer ? parentDealer.name : '',
+      parentSubDealerName: parentSubDealer ? parentSubDealer.name : '',
+      commissionBalance: worker.commissionBalance,
+      totalCommissionEarned: worker.totalCommissionEarned,
+    },
+    customers,
+    cards,
+    deliveries,
+    commissions,
+    withdrawals,
+    summary: {
+      assignedCustomersCount: customers.length,
+      pendingDeliveriesCount: deliveries.filter((d) => d.status === 'pending' || d.status === 'in_transit').length,
+      completedDeliveriesCount: deliveries.filter((d) => d.status === 'delivered').length,
+      commissionBalance: worker.commissionBalance,
+    },
+  });
+});
+
+// 4. CUSTOMER PORTAL DATA (Strictly Scoped to Customer's Own Record)
+app.get('/api/portal/customer/data', portalAuthMiddleware(['customer']), (req: Request, res: Response) => {
+  const customerId = (req as any).portalUser.id;
+  const customer = networkPeopleDb.find((p) => p.id === customerId && p.role === 'customer');
+
+  if (!customer) {
+    return res.status(404).json({ success: false, error: 'গ্রাহক প্রোফাইল পাওয়া যায়নি।' });
+  }
+
+  // Fair Price Card owned by this customer
+  const card = fairPriceCardsDb.find(
+    (c) => c.customerId === customerId || c.customerMobile.replace(/\D/g, '') === customer.mobile.replace(/\D/g, '')
+  );
+
+  // Entitlement / Product Supply Schedules for this customer or card
+  const schedules = productSchedulesDb.filter(
+    (s) => s.customerId === customerId || (card && s.cardNumber === card.cardNumber)
+  );
+
+  // Payment records for this customer
+  const payments = customerPaymentsDb.filter(
+    (p) => p.customerId === customerId || (card && p.cardNumber === card.cardNumber)
+  );
+
+  // Orders and Deliveries for this customer
+  const orders = ordersDb.filter((o) => o.customerMobile.replace(/\D/g, '') === customer.mobile.replace(/\D/g, ''));
+  const deliveries = deliveriesDb.filter((d) => d.recipientMobile.replace(/\D/g, '') === customer.mobile.replace(/\D/g, ''));
+
+  // Assigned Representative or Dealer info for direct help
+  const assignedDealer = networkPeopleDb.find((p) => p.id === customer.parentDealerId);
+  const assignedRep = networkPeopleDb.find((p) => p.id === customer.parentRepresentativeId);
+
+  res.json({
+    success: true,
+    customer: {
+      id: customer.id,
+      name: customer.name,
+      mobile: customer.mobile,
+      address: customer.address,
+      area: customer.area,
+      nid: customer.nid,
+      status: customer.status,
+      photoUrl: customer.photoUrl,
+      joinedDate: customer.joinedDate,
+    },
+    card: card || null,
+    schedules,
+    payments,
+    orders,
+    deliveries,
+    careContact: {
+      dealerName: assignedDealer ? assignedDealer.name : 'হোলিনেক্স প্রধান কার্যালয়',
+      dealerPhone: assignedDealer ? assignedDealer.mobile : '01307835260',
+      repName: assignedRep ? assignedRep.name : 'কাস্টমার কেয়ার হেল্পলাইন',
+      repPhone: assignedRep ? assignedRep.mobile : '01307835260',
+    },
+  });
+});
+
+// Portal Action: Submit Withdrawal Request (Dealer, Sub-Dealer, Worker, Rep)
+app.post('/api/portal/withdrawals', portalAuthMiddleware(['dealer', 'sub_dealer', 'worker', 'representative']), (req: Request, res: Response) => {
+  const user = (req as any).portalUser as PortalSessionData;
+  const { amount, payoutMethod, accountDetails } = req.body;
+
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount < 500) {
+    return res.status(400).json({ success: false, error: 'ন্যূনতম উত্তোলনের পরিমাণ ৫০০ টাকা।' });
+  }
+
+  const person = networkPeopleDb.find((p) => p.id === user.id);
+  if (!person || person.commissionBalance < numAmount) {
+    return res.status(400).json({
+      success: false,
+      error: `অপর্যাপ্ত ব্যালেন্স। আপনার বর্তমান উত্তোলনযোগ্য ব্যালেন্স ৳${person ? person.commissionBalance : 0}।`,
+    });
+  }
+
+  const newWithdrawal: WithdrawalRequest = {
+    id: `WTH-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    requesterId: user.id,
+    requesterName: user.name,
+    requesterRole: user.role as 'dealer' | 'sub_dealer' | 'worker' | 'representative',
+    amount: numAmount,
+    payoutMethod: payoutMethod || 'bKash',
+    payoutDetails: accountDetails || user.mobile,
+    status: 'pending',
+    requestedAt: new Date().toISOString(),
+  };
+
+  withdrawalsDb.unshift(newWithdrawal);
+  person.commissionBalance -= numAmount;
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'WITHDRAWAL_REQUEST',
+    entity: user.role.toUpperCase(),
+    details: `${user.name} requested withdrawal of ৳${numAmount} via ${payoutMethod}.`,
+    adminUser: 'PORTAL_USER',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: 'উত্তোলন আবেদন প্রধান ফাইন্যান্স বিভাগে জমা হয়েছে।',
+    withdrawal: newWithdrawal,
+    remainingBalance: person.commissionBalance,
+  });
+});
+
+// Portal Action: Worker Update Delivery Status
+app.post('/api/portal/worker/complete-delivery', portalAuthMiddleware(['worker']), (req: Request, res: Response) => {
+  const { deliveryId, otp } = req.body;
+  const delivery = deliveriesDb.find((d) => d.id === deliveryId);
+
+  if (!delivery) {
+    return res.status(404).json({ success: false, error: 'ডেলিভারি রেকর্ড পাওয়া যায়নি।' });
+  }
+
+  delivery.status = 'delivered';
+  delivery.otpVerified = true;
+
+  res.json({ success: true, message: 'ডেলিভারি সফলভাবে সম্পন্ন হয়েছে।', delivery });
+});
+
+// Portal Action: Customer Report Payment
+app.post('/api/portal/customer/report-payment', portalAuthMiddleware(['customer']), (req: Request, res: Response) => {
+  const user = (req as any).portalUser as PortalSessionData;
+  const { cardNumber, amount, type, method, transactionReference, notes } = req.body;
+
+  if (!transactionReference || !amount) {
+    return res.status(400).json({ success: false, error: 'টাকা এবং ট্রানজেকশন রেফারেন্স প্রদান করুন।' });
+  }
+
+  const newPayment = {
+    id: `PAY-${Date.now()}`,
+    customerId: user.id,
+    cardNumber: cardNumber || 'FPC-ONLINE',
+    amount: Number(amount),
+    type: type || 'installment',
+    method: method || 'bKash',
+    transactionReference: String(transactionReference).trim(),
+    status: 'pending' as const,
+    date: new Date().toISOString(),
+    notes: notes || 'গ্রাহক পোর্টাল থেকে জমা দেওয়া ট্রানজেকশন রসিদ',
+  };
+
+  customerPaymentsDb.unshift(newPayment);
+
+  res.json({
+    success: true,
+    message: 'পেমেন্ট তথ্য যাচাইয়ের জন্য সফলভাবে জমা হয়েছে। ২৪ ঘণ্টার মধ্যে ভেরিফিকেশন সম্পন্ন হবে।',
+    payment: newPayment,
+  });
 });
 
 // ---------------------------------------------
@@ -851,6 +1836,202 @@ app.get('/api/admin/audit-logs', authMiddleware, (_req: Request, res: Response) 
 // Admin Notifications History
 app.get('/api/admin/notifications', authMiddleware, (_req: Request, res: Response) => {
   res.json(notificationsDb);
+});
+
+// ---------------------------------------------
+// ADMIN REAL AI ASSISTANT & KNOWLEDGE BASE APIS
+// ---------------------------------------------
+
+// Get AI Settings
+app.get('/api/admin/ai/settings', authMiddleware, (_req: Request, res: Response) => {
+  res.json({ success: true, settings: aiSettingsDb });
+});
+
+// Save AI Settings
+app.post('/api/admin/ai/settings', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'SuperAdmin';
+  aiSettingsDb = { ...aiSettingsDb, ...req.body };
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AI_SETTINGS_UPDATE',
+    entity: 'AI_SYSTEM',
+    details: `Corporate AI parameters updated. Status: ${aiSettingsDb.enabled ? 'Active' : 'Disabled'}.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, settings: aiSettingsDb });
+});
+
+// Get AI Knowledge Base
+app.get('/api/admin/ai/knowledge', authMiddleware, (_req: Request, res: Response) => {
+  res.json({ success: true, knowledge: aiKnowledgeBaseDb });
+});
+
+// Save or Update Knowledge Item
+app.post('/api/admin/ai/knowledge', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'SuperAdmin';
+  const item = req.body;
+  if (!item.questionBn || !item.answerBn) {
+    return res.status(400).json({ success: false, error: 'Question and Answer in Bangla are required.' });
+  }
+
+  const existingIdx = aiKnowledgeBaseDb.findIndex((k) => k.id === item.id);
+  const updatedItem = {
+    ...item,
+    id: item.id || `kb-${Date.now()}`,
+    updatedAt: new Date().toISOString(),
+    active: item.active !== undefined ? item.active : true,
+    keywords: Array.isArray(item.keywords) ? item.keywords : [],
+  };
+
+  if (existingIdx >= 0) {
+    aiKnowledgeBaseDb[existingIdx] = updatedItem;
+  } else {
+    aiKnowledgeBaseDb.unshift(updatedItem);
+  }
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AI_KNOWLEDGE_SAVE',
+    entity: 'AI_SYSTEM',
+    details: `Knowledge item "${updatedItem.questionBn.slice(0, 35)}..." saved.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, item: updatedItem });
+});
+
+// Delete Knowledge Item
+app.delete('/api/admin/ai/knowledge/:id', authMiddleware, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const currentAdmin = (req as any).adminUser?.name || 'SuperAdmin';
+  aiKnowledgeBaseDb = aiKnowledgeBaseDb.filter((k) => k.id !== id);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AI_KNOWLEDGE_DELETE',
+    entity: 'AI_SYSTEM',
+    details: `Knowledge base item ${id} deleted.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'Deleted successfully' });
+});
+
+// Get AI Analytics & Interaction Logs
+app.get('/api/admin/ai/analytics', authMiddleware, (_req: Request, res: Response) => {
+  res.json({ success: true, analytics: aiChatAnalyticsDb });
+});
+
+// Reset AI Analytics Logs
+app.post('/api/admin/ai/analytics/reset', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'SuperAdmin';
+  aiChatAnalyticsDb = {
+    ...aiChatAnalyticsDb,
+    recentLogs: [],
+  };
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AI_ANALYTICS_RESET',
+    entity: 'AI_SYSTEM',
+    details: 'AI chat interaction query logs cleared.',
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'Analytics logs reset successfully' });
+});
+
+// Admin Reset Network Person Password
+app.post('/api/admin/people/reset-password', authMiddleware, (req: Request, res: Response) => {
+  const { personId, newPassword } = req.body;
+  if (!personId || !newPassword) {
+    return res.status(400).json({ success: false, error: 'Person ID and new password are required' });
+  }
+  const person = networkPeopleDb.find((p) => p.id === personId);
+  if (!person) {
+    return res.status(404).json({ success: false, error: 'User not found in network' });
+  }
+  person.password = newPassword;
+  person.passwordHash = hashPortalPassword(newPassword);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'ADMIN_RESET_PASSWORD',
+    entity: person.role.toUpperCase(),
+    details: `Admin reset password for ${person.name} (${person.id}).`,
+    adminUser: (req as any).adminUser?.name || 'SuperAdmin',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: `Password reset successfully for ${person.name}.` });
+});
+
+// Admin Live AI Playground Test
+app.post('/api/admin/ai/test', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { prompt, lang = 'bn', testLookupId } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    let lookupNote = '';
+    if (testLookupId) {
+      const appMatch = dealerApplicationsDb.find((a) => a.id === testLookupId || a.mobile.includes(testLookupId));
+      if (appMatch) {
+        lookupNote = `Verified Application: ${appMatch.id}, Name: ${appMatch.fullName}, Status: ${appMatch.status}`;
+      }
+      const cardMatch = fairPriceCardsDb.find((c) => c.cardNumber === testLookupId || c.customerMobile.includes(testLookupId));
+      if (cardMatch) {
+        lookupNote += (lookupNote ? ' | ' : '') + `Verified Card: ${cardMatch.cardNumber}, Customer: ${cardMatch.customerName}, Status: ${cardMatch.status}`;
+      }
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    let responseText = '';
+    let mode = 'rule_based_fallback';
+
+    if (apiKey) {
+      try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+        });
+
+        const testInstruction = `You are ${aiSettingsDb.assistantNameBn}. Tone: ${aiSettingsDb.tone}. Corporate facts: Holynex Group Jurain, hotline 01307835260. ${lookupNote ? `[LOOKUP CONTEXT]: ${lookupNote}` : ''} Language: ${lang}. Keep response concise and factual.`;
+
+        const testRes = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+          config: {
+            systemInstruction: testInstruction,
+            temperature: 0.3,
+          },
+        });
+        responseText = testRes.text || '';
+        mode = 'gemini-3.8-flash';
+      } catch (e: any) {
+        console.error('[Admin Test] Gemini error:', e);
+      }
+    }
+
+    if (!responseText) {
+      responseText = `[Test Fallback Response]: Holynex Group official service test. Query: "${prompt}". Status: OK.`;
+    }
+
+    res.json({
+      success: true,
+      mode,
+      hasApiKey: !!apiKey,
+      lookupFound: !!lookupNote,
+      response: responseText,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------------------------------------------

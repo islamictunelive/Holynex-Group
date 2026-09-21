@@ -198,6 +198,35 @@ export interface NetworkPerson {
   joinedDate: string;
   commissionBalance: number;
   totalCommissionEarned: number;
+  password?: string;
+  passwordHash?: string;
+  lastLogin?: string;
+  loginAttempts?: number;
+}
+
+export interface PortalUserSession {
+  id: string;
+  role: PersonRole;
+  name: string;
+  mobile: string;
+  email?: string;
+  area?: string;
+  photoUrl?: string;
+  token: string;
+  loginTime: string;
+}
+
+export interface CustomerPaymentRecord {
+  id: string;
+  customerId: string;
+  cardNumber: string;
+  amount: number;
+  type: 'card_fee' | 'installment' | 'product_staple';
+  method: 'bKash' | 'Nagad' | 'Bank Deposit' | 'Cash at Counter';
+  transactionReference: string;
+  status: 'verified' | 'pending' | 'rejected';
+  date: string;
+  notes?: string;
 }
 
 export interface FairPriceCardRecord {
@@ -309,5 +338,64 @@ export interface SmsCampaign {
   channel: 'sms' | 'push' | 'in_app';
   status: 'sent' | 'scheduled' | 'draft';
   sentAt: string;
+}
+
+export interface AIKnowledgeItem {
+  id: string;
+  category: 'general' | 'fair_price_card' | 'installments' | 'dealer' | 'products' | 'contact' | 'policy';
+  questionBn: string;
+  questionEn: string;
+  answerBn: string;
+  answerEn: string;
+  keywords: string[];
+  active: boolean;
+  priority?: number;
+  updatedAt: string;
+}
+
+export interface AISettings {
+  enabled: boolean;
+  assistantNameBn: string;
+  assistantNameEn: string;
+  welcomeMessageBn: string;
+  welcomeMessageEn: string;
+  tone: 'professional' | 'friendly' | 'concise';
+  systemPersonaBn?: string;
+  systemPersonaEn?: string;
+  fallbackMessageBn: string;
+  fallbackMessageEn: string;
+  supportPhone: string;
+  supportWhatsapp: string;
+  supportEmail: string;
+  supportHoursBn: string;
+  supportHoursEn: string;
+  enableCustomerLookup: boolean;
+  enableDealerLookup: boolean;
+  maxDailyRequestsPerIp: number;
+}
+
+export interface AIChatQueryLog {
+  id: string;
+  timestamp: string;
+  query: string;
+  replySnippet: string;
+  lang: 'bn' | 'en';
+  status: 'answered_ai' | 'answered_kb' | 'lookup_success' | 'escalated' | 'fallback';
+  confidence?: 'high' | 'medium' | 'low';
+  category?: string;
+  ip?: string;
+  hasLookup?: boolean;
+}
+
+export interface AIChatAnalytics {
+  totalConversations: number;
+  totalMessages: number;
+  answeredByAI: number;
+  answeredByKnowledgeBase: number;
+  escalatedToHuman: number;
+  banglaPercentage: number;
+  englishPercentage: number;
+  topQueries: { query: string; count: number; category: string }[];
+  recentLogs: AIChatQueryLog[];
 }
 

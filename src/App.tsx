@@ -13,7 +13,16 @@ import { CustomerBenefitsView } from './components/pages/CustomerBenefitsView';
 import { NewsView } from './components/pages/NewsView';
 import { DealerAgreementView } from './components/pages/DealerAgreementView';
 import { LegalView } from './components/pages/LegalView';
+import { FairPriceCardView } from './components/pages/FairPriceCardView';
+import { InstallmentFacilityView } from './components/pages/InstallmentFacilityView';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { LoginView } from './components/portal/LoginView';
+import { DealerPortalView } from './components/portal/DealerPortalView';
+import { SubDealerPortalView } from './components/portal/SubDealerPortalView';
+import { WorkerPortalView } from './components/portal/WorkerPortalView';
+import { CustomerPortalView } from './components/portal/CustomerPortalView';
+import { Storage } from './lib/storage';
+import { PortalUserSession } from './types';
 import { FloatingSocialBar } from './components/layout/FloatingSocialBar';
 import { FloatingChatWidget } from './components/layout/FloatingChatWidget';
 import { Phone, MessageCircle, ArrowUp } from 'lucide-react';
@@ -34,6 +43,20 @@ function MainApp() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [portalSession, setPortalSession] = useState<PortalUserSession | null>(() => Storage.getPortalSession());
+
+  // Synchronize portal session with storage
+  useEffect(() => {
+    const updateSession = () => {
+      setPortalSession(Storage.getPortalSession());
+    };
+    window.addEventListener('storage', updateSession);
+    const interval = setInterval(updateSession, 2000);
+    return () => {
+      window.removeEventListener('storage', updateSession);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Synchronize hash with route changes
   const navigate = useCallback((path: string) => {
@@ -41,6 +64,17 @@ function MainApp() {
     window.location.hash = path;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const handlePortalLogout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore network errors
+    }
+    Storage.clearPortalSession();
+    setPortalSession(null);
+    navigate('/login');
+  }, [navigate]);
 
   // Listen to browser forward/back buttons
   useEffect(() => {
@@ -156,6 +190,10 @@ function MainApp() {
 
         {currentPath === '/customer-benefits' && <CustomerBenefitsView navigate={navigate} />}
 
+        {currentPath === '/fair-price-card' && <FairPriceCardView navigate={navigate} />}
+
+        {currentPath === '/installments' && <InstallmentFacilityView navigate={navigate} />}
+
         {currentPath === '/dealer-application' && <DealerApplicationForm navigate={navigate} />}
 
         {currentPath === '/status' && <DealerStatusCheck />}
@@ -164,12 +202,68 @@ function MainApp() {
 
         {currentPath === '/dealer-agreement' && <DealerAgreementView navigate={navigate} />}
 
-        {currentPath === '/terms' && <LegalView type="terms" navigate={navigate} />}
+        {(currentPath === '/terms' || currentPath === '/legal') && <LegalView type="terms" navigate={navigate} />}
 
         {currentPath === '/privacy-policy' && <LegalView type="privacy" navigate={navigate} />}
 
         {(currentPath === '/admin' || currentPath === '/admin-portal') && (
           <AdminPortal navigate={navigate} onDataChange={loadData} />
+        )}
+
+        {/* Public Login Route */}
+        {currentPath === '/login' && <LoginView navigate={navigate} />}
+
+        {/* Generic /portal redirect */}
+        {currentPath === '/portal' && (
+          portalSession ? (
+            portalSession.role === 'dealer' ? (
+              <DealerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+            ) : portalSession.role === 'sub_dealer' ? (
+              <SubDealerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+            ) : portalSession.role === 'worker' ? (
+              <WorkerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+            ) : (
+              <CustomerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+            )
+          ) : (
+            <LoginView navigate={navigate} />
+          )
+        )}
+
+        {/* Dealer Portal */}
+        {currentPath === '/portal/dealer' && (
+          portalSession && portalSession.role === 'dealer' ? (
+            <DealerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+          ) : (
+            <LoginView navigate={navigate} />
+          )
+        )}
+
+        {/* Sub-Dealer Portal */}
+        {(currentPath === '/portal/sub-dealer' || currentPath === '/portal/sub_dealer') && (
+          portalSession && portalSession.role === 'sub_dealer' ? (
+            <SubDealerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+          ) : (
+            <LoginView navigate={navigate} />
+          )
+        )}
+
+        {/* Worker Portal */}
+        {currentPath === '/portal/worker' && (
+          portalSession && portalSession.role === 'worker' ? (
+            <WorkerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+          ) : (
+            <LoginView navigate={navigate} />
+          )
+        )}
+
+        {/* Customer Portal */}
+        {currentPath === '/portal/customer' && (
+          portalSession && portalSession.role === 'customer' ? (
+            <CustomerPortalView session={portalSession} navigate={navigate} onLogout={handlePortalLogout} />
+          ) : (
+            <LoginView navigate={navigate} />
+          )
         )}
       </main>
 

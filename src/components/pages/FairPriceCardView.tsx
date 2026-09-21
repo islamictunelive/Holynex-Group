@@ -36,7 +36,7 @@ export const FairPriceCardView: React.FC<FairPriceCardViewProps> = ({ navigate }
 
   const stapleItems = [
     {
-      nameBn: 'প্রিমিয়াম মিনিকেট চাল',
+      nameBn: 'প্রিমিয়াম মিনিকেট চাউল',
       nameEn: 'Premium Miniket Rice',
       allocationBn: 'মাসিক ১০ - ২৫ কেজি',
       allocationEn: 'Monthly 10 - 25 KG',
@@ -46,7 +46,7 @@ export const FairPriceCardView: React.FC<FairPriceCardViewProps> = ({ navigate }
       image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80',
     },
     {
-      nameBn: 'বিশুদ্ধ ফর্টিফাইড সয়াবিন তেল',
+      nameBn: 'বিশুদ্ধ ফর্টিফাইড সয়াবিন তৈল',
       nameEn: 'Pure Fortified Soybean Oil',
       allocationBn: 'মাসিক ২ - ৫ লিটার',
       allocationEn: 'Monthly 2 - 5 Liters',
@@ -94,6 +94,46 @@ export const FairPriceCardView: React.FC<FairPriceCardViewProps> = ({ navigate }
       marketRate: '৳ ১৮০/কেজি',
       savings: '১৭% সাশ্রয়',
       image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      nameBn: 'ভ্যাকুয়াম ইভাপোরেটেড আয়োডিনযুক্ত লবণ',
+      nameEn: 'Vacuum Evaporated Iodized Salt',
+      allocationBn: 'মাসিক ২ - ৫ কেজি',
+      allocationEn: 'Monthly 2 - 5 KG',
+      fairRate: '৳ ৩৮/কেজি',
+      marketRate: '৳ ৫০/কেজি',
+      savings: '২৪% সাশ্রয়',
+      image: 'https://images.unsplash.com/photo-1518110925495-5fe2fda0442c?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      nameBn: 'অ্যাক্টিভ এনজাইম লন্ড্রি ডিটারজেন্ট',
+      nameEn: 'Active Laundry Detergent',
+      allocationBn: 'মাসিক ২ - ৫ কেজি',
+      allocationEn: 'Monthly 2 - 5 KG',
+      fairRate: '৳ ১২৫/কেজি',
+      marketRate: '৳ ১৬০/কেজি',
+      savings: '২২% সাশ্রয়',
+      image: 'https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      nameBn: 'লেমন অ্যান্টি-ব্যাকটেরিয়াল ডিশওয়াশ',
+      nameEn: 'Lemon Anti-Bacterial Dishwash',
+      allocationBn: 'মাসিক ১ - ২ লিটার',
+      allocationEn: 'Monthly 1 - 2 Liters',
+      fairRate: '৳ ১৮০/লিটার',
+      marketRate: '৳ ২২০/লিটার',
+      savings: '১৮% সাশ্রয়',
+      image: 'https://images.unsplash.com/photo-1585670210693-e7fdd16b142e?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      nameBn: 'পারিবারিক হাইজিন বাথ ও লন্ড্রি সাবান',
+      nameEn: 'Family Hygiene Bath & Laundry Soap',
+      allocationBn: 'মাসিক ৪ - ৮ টি',
+      allocationEn: 'Monthly 4 - 8 Bars',
+      fairRate: '৳ ৪৫/পিস',
+      marketRate: '৳ ৬০/পিস',
+      savings: '২৫% সাশ্রয়',
+      image: 'https://images.unsplash.com/photo-1607006314177-3e1ee8ef60ec?auto=format&fit=crop&w=600&q=80',
     },
   ];
 
@@ -160,7 +200,7 @@ export const FairPriceCardView: React.FC<FairPriceCardViewProps> = ({ navigate }
 
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
                 {t(
-                  'বাজারের কৃত্রিম সিন্ডিকেট ও লাগামহীন মূল্যবৃদ্ধি প্রতিরোধ করে সরাসরি মিল ও কারখানা থেকে চাল, ডাল, তেল, আটা, চিনি সহ প্রধান খাদ্যসামগ্রী নিবন্ধিত কার্ডধারীদের কাছে সরকারি বা নির্ধারিত পাইকারি রেটে ঘরে ঘরে পৌঁছে দেওয়াই আমাদের উদ্দেশ্য।',
+                  'বাজারের কৃত্রিম সিন্ডিকেট ও লাগামহীন মূল্যবৃদ্ধি প্রতিরোধ করে সরাসরি মিল ও কারখানা থেকে চাউল, ডাল, তৈল, আটা, চিনি, লবণ সহ প্রধান খাদ্যসামগ্রী নিবন্ধিত কার্ডধারীদের কাছে সরকারি বা নির্ধারিত পাইকারি রেটে ঘরে ঘরে পৌঁছে দেওয়াই আমাদের উদ্দেশ্য।',
                   'Protecting households from retail hoarding with verified wholesale allocations of rice, lentils, edible oil, flour, and sugar delivered through our authorized representative network.'
                 )}
               </p>

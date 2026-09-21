@@ -160,10 +160,19 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             <ul className="space-y-2.5 text-sm">
               <li>
                 <button
-                  onClick={() => handleNav('/dealer-application')}
-                  className="text-amber-400 font-semibold hover:underline flex items-center gap-1.5"
+                  onClick={() => handleNav('/login')}
+                  className="text-amber-400 font-bold hover:underline flex items-center gap-1.5"
                 >
                   <ChevronRight className="w-3.5 h-3.5 text-amber-500" />
+                  {t('ইউজার পোর্টাল লগইন (ডিলার/কর্মী/গ্রাহক)', 'User Portal Login (All Roles)')}
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => handleNav('/dealer-application')}
+                  className="text-slate-300 font-semibold hover:text-amber-400 flex items-center gap-1.5"
+                >
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                   {t('ডিলারশিপ অনলাইন আবেদন', 'Apply for Dealership')}
                 </button>
               </li>

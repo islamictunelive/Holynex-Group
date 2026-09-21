@@ -1,6 +1,6 @@
 {
   "name": "Holynex Group",
-  "description": "Corporate platform for Holynex Group - Fair Price Card System, Installment Product Sales, and Authorized Dealer Network.",
+  "description": "Corporate platform for Holynex Group - Fair Price Card System, Installment Product Sales, Authorized Dealer Network, and Real AI Live Chat Assistant.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

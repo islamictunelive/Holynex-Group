@@ -18,6 +18,12 @@ import {
   WithdrawalRequest,
   CommissionRule,
   SmsCampaign,
+  AIKnowledgeItem,
+  AISettings,
+  AIChatAnalytics,
+  AIChatQueryLog,
+  PortalUserSession,
+  CustomerPaymentRecord,
 } from '../types';
 import {
   initialAdminUsers,
@@ -36,7 +42,13 @@ import {
   initialWithdrawals,
   initialCommissionRules,
   initialSmsCampaigns,
+  initialCustomerPayments,
 } from './data';
+import {
+  initialAISettings,
+  initialAIKnowledge,
+  initialAIChatAnalytics,
+} from './aiData';
 
 // Helper to safely get / set localStorage with SSR guard
 function getLocalItem<T>(key: string, fallback: T): T {
@@ -322,14 +334,53 @@ export const Storage = {
   // Products
   getProducts: (): ProductItem[] => {
     const stored = getLocalItem<ProductItem[]>('holynex_products', initialProducts);
+    // Ensure official terminology is preserved on existing stored products if they have old terminology
+    let modified = false;
+    const updated = stored.map((p) => {
+      // If it's one of the canonical products, ensure official terminology
+      if (p.id === 'prod-7' && p.nameBn.includes('চাল')) {
+        modified = true;
+        return {
+          ...p,
+          nameBn: p.nameBn.replace(/চাল/g, 'চাউল'),
+          descBn: p.descBn.replace(/চাল/g, 'চাউল'),
+          specificationsBn: p.specificationsBn?.map((s) => s.replace(/চাল/g, 'চাউল')),
+        };
+      }
+      if (p.id === 'prod-8' && p.nameBn.includes('তেল')) {
+        modified = true;
+        return {
+          ...p,
+          nameBn: p.nameBn.replace(/তেল/g, 'তৈল'),
+          descBn: p.descBn.replace(/তেল/g, 'তৈল'),
+        };
+      }
+      if (p.id === 'prod-11' && p.descBn?.includes('চাল')) {
+        modified = true;
+        return {
+          ...p,
+          descBn: p.descBn.replace(/চাল/g, 'চাউল'),
+        };
+      }
+      if (p.id === 'prod-12' && p.descBn?.includes('তেল')) {
+        modified = true;
+        return {
+          ...p,
+          descBn: p.descBn.replace(/তেল/g, 'তৈল'),
+          specificationsBn: p.specificationsBn?.map((s) => s.replace(/তেল/g, 'তৈল')),
+        };
+      }
+      return p;
+    });
+
     // Automatically merge any newly added initial products (such as consumer goods items)
-    const missing = initialProducts.filter((p) => !stored.some((s) => s.id === p.id));
-    if (missing.length > 0) {
-      const merged = [...stored, ...missing];
+    const missing = initialProducts.filter((p) => !updated.some((s) => s.id === p.id));
+    if (missing.length > 0 || modified) {
+      const merged = [...updated, ...missing];
       setLocalItem('holynex_products', merged);
       return merged;
     }
-    return stored;
+    return updated;
   },
 
   saveProducts: (products: ProductItem[]): void => {
@@ -679,6 +730,11 @@ export const Storage = {
     setLocalItem('holynex_deliveries', updated);
   },
 
+  recordDeliveryUpdate: (id: string, status: DeliveryRecord['status'], note?: string): void => {
+    Storage.updateDeliveryStatus(id, status);
+    Storage.addAuditLog('DELIVERY_UPDATE', 'LOGISTICS', `Delivery ${id} marked as ${status}. ${note || ''}`);
+  },
+
   // Commissions
   getCommissions: (): CommissionRecord[] => {
     return getLocalItem<CommissionRecord[]>('holynex_commissions', initialCommissions);
@@ -719,6 +775,34 @@ export const Storage = {
       updated = [wth, ...list];
     }
     setLocalItem('holynex_withdrawals', updated);
+  },
+
+  requestWithdrawal: (
+    reqOrId: WithdrawalRequest | string,
+    requesterName?: string,
+    requesterRole?: any,
+    amount?: number,
+    payoutMethod?: any,
+    payoutDetails?: string
+  ): void => {
+    let req: WithdrawalRequest;
+    if (typeof reqOrId === 'object') {
+      req = reqOrId;
+    } else {
+      req = {
+        id: `WTH-${Date.now().toString().slice(-4)}`,
+        requesterId: reqOrId,
+        requesterName: requesterName || 'User',
+        requesterRole: requesterRole || 'dealer',
+        amount: amount || 0,
+        payoutMethod: payoutMethod || 'bKash',
+        payoutDetails: payoutDetails || '',
+        status: 'pending',
+        requestedAt: new Date().toISOString(),
+      };
+    }
+    Storage.saveWithdrawal(req);
+    Storage.addAuditLog('WITHDRAWAL_REQUEST', 'FINANCE', `${req.requesterName} requested withdrawal of ৳${req.amount}.`);
   },
 
   updateWithdrawalStatus: (id: string, status: WithdrawalRequest['status'], adminNote?: string): void => {
@@ -765,6 +849,167 @@ export const Storage = {
     const updated = [camp, ...list];
     setLocalItem('holynex_sms_campaigns', updated);
     Storage.addAuditLog('SMS_CAMPAIGN', 'MESSAGING', `Campaign "${camp.title}" dispatched to ${camp.recipientsCount} recipients.`);
+  },
+
+  // ----------------------------------------------------
+  // Real AI Assistant Settings & Knowledge Base
+  // ----------------------------------------------------
+  getAISettings: (): AISettings => {
+    return getLocalItem<AISettings>('holynex_ai_settings', initialAISettings);
+  },
+
+  saveAISettings: (settings: AISettings): void => {
+    setLocalItem('holynex_ai_settings', settings);
+    Storage.addAuditLog('AI_SETTINGS_UPDATE', 'AI_SYSTEM', 'Corporate AI Assistant parameters updated.');
+  },
+
+  getAIKnowledge: (): AIKnowledgeItem[] => {
+    return getLocalItem<AIKnowledgeItem[]>('holynex_ai_knowledge', initialAIKnowledge);
+  },
+
+  saveAIKnowledgeItem: (item: AIKnowledgeItem): void => {
+    const list = Storage.getAIKnowledge();
+    const idx = list.findIndex((k) => k.id === item.id);
+    let updated: AIKnowledgeItem[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = { ...item, updatedAt: new Date().toISOString() };
+    } else {
+      updated = [{ ...item, updatedAt: new Date().toISOString() }, ...list];
+    }
+    setLocalItem('holynex_ai_knowledge', updated);
+    Storage.addAuditLog('AI_KNOWLEDGE_SAVE', 'AI_SYSTEM', `Knowledge entry "${item.questionBn.slice(0, 30)}..." updated.`);
+  },
+
+  deleteAIKnowledgeItem: (id: string): void => {
+    const list = Storage.getAIKnowledge();
+    const updated = list.filter((k) => k.id !== id);
+    setLocalItem('holynex_ai_knowledge', updated);
+    Storage.addAuditLog('AI_KNOWLEDGE_DELETE', 'AI_SYSTEM', `Knowledge entry ${id} removed.`);
+  },
+
+  getAIChatAnalytics: (): AIChatAnalytics => {
+    return getLocalItem<AIChatAnalytics>('holynex_ai_analytics', initialAIChatAnalytics);
+  },
+
+  logAIChatQuery: (log: Omit<AIChatQueryLog, 'id' | 'timestamp'>): void => {
+    const current = Storage.getAIChatAnalytics();
+    const newLog: AIChatQueryLog = {
+      ...log,
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date().toISOString(),
+    };
+    const updatedLogs = [newLog, ...(current.recentLogs || [])].slice(0, 100);
+    const isBn = log.lang === 'bn';
+    const totalMsgs = current.totalMessages + 1;
+    const bnCount = Math.round((current.totalMessages * current.banglaPercentage) / 100) + (isBn ? 1 : 0);
+    const newBnPct = Math.round((bnCount / totalMsgs) * 100);
+
+    const updated: AIChatAnalytics = {
+      ...current,
+      totalMessages: totalMsgs,
+      answeredByAI: current.answeredByAI + (log.status === 'answered_ai' ? 1 : 0),
+      answeredByKnowledgeBase: current.answeredByKnowledgeBase + (log.status === 'answered_kb' ? 1 : 0),
+      escalatedToHuman: current.escalatedToHuman + (log.status === 'escalated' ? 1 : 0),
+      banglaPercentage: newBnPct,
+      englishPercentage: 100 - newBnPct,
+      recentLogs: updatedLogs,
+    };
+    setLocalItem('holynex_ai_analytics', updated);
+  },
+
+  resetAIAnalytics: (): void => {
+    setLocalItem('holynex_ai_analytics', {
+      ...initialAIChatAnalytics,
+      totalConversations: 0,
+      totalMessages: 0,
+      answeredByAI: 0,
+      answeredByKnowledgeBase: 0,
+      escalatedToHuman: 0,
+      recentLogs: [],
+    });
+    Storage.addAuditLog('AI_ANALYTICS_RESET', 'AI_SYSTEM', 'AI Chat interaction logs reset.');
+  },
+
+  // ----------------------------------------------------
+  // Customer Payments & Transactions
+  // ----------------------------------------------------
+  getCustomerPayments: (customerId?: string): CustomerPaymentRecord[] => {
+    const list = getLocalItem<CustomerPaymentRecord[]>('holynex_customer_payments', initialCustomerPayments);
+    if (customerId) {
+      return list.filter((p) => p.customerId === customerId);
+    }
+    return list;
+  },
+
+  saveCustomerPayment: (payment: CustomerPaymentRecord): void => {
+    const list = Storage.getCustomerPayments();
+    const idx = list.findIndex((p) => p.id === payment.id);
+    let updated: CustomerPaymentRecord[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = payment;
+    } else {
+      updated = [payment, ...list];
+    }
+    setLocalItem('holynex_customer_payments', updated);
+  },
+
+  // ----------------------------------------------------
+  // Role-Based Portal Authentication & Session
+  // ----------------------------------------------------
+  getPortalSession: (): PortalUserSession | null => {
+    return getLocalItem<PortalUserSession | null>('holynex_portal_session', null);
+  },
+
+  setPortalSession: (session: PortalUserSession | null): void => {
+    setLocalItem('holynex_portal_session', session);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('holynex_portal_auth_changed', { detail: session }));
+    }
+  },
+
+  clearPortalSession: (): void => {
+    Storage.setPortalSession(null);
+  },
+
+  resetPersonPassword: (id: string, newPassword: string): boolean => {
+    const list = Storage.getNetworkPeople();
+    const idx = list.findIndex((p) => p.id === id);
+    if (idx >= 0) {
+      const updated = [...list];
+      updated[idx] = {
+        ...updated[idx],
+        password: newPassword,
+        loginAttempts: 0,
+      };
+      setLocalItem('holynex_network_people', updated);
+      Storage.addAuditLog('PASSWORD_RESET', updated[idx].role.toUpperCase(), `Password reset for user ${updated[idx].name} (${id}).`);
+      return true;
+    }
+    return false;
+  },
+
+  updatePersonStatus: (id: string, status: 'active' | 'suspended' | 'pending'): void => {
+    const list = Storage.getNetworkPeople();
+    const idx = list.findIndex((p) => p.id === id);
+    if (idx >= 0) {
+      const updated = [...list];
+      updated[idx] = { ...updated[idx], status };
+      setLocalItem('holynex_network_people', updated);
+      Storage.addAuditLog('STATUS_CHANGE', updated[idx].role.toUpperCase(), `User ${id} status set to ${status}.`);
+    }
+  },
+
+  findNetworkPersonByIdentifier: (identifier: string): NetworkPerson | undefined => {
+    const list = Storage.getNetworkPeople();
+    const cleanId = identifier.trim().toLowerCase();
+    return list.find(
+      (p) =>
+        p.id.toLowerCase() === cleanId ||
+        p.mobile.replace(/\D/g, '').includes(cleanId.replace(/\D/g, '')) ||
+        (p.email && p.email.toLowerCase() === cleanId)
+    );
   },
 };
 

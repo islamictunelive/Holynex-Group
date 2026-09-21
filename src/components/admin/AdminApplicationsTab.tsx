@@ -149,7 +149,7 @@ export const AdminApplicationsTab: React.FC<AdminApplicationsTabProps> = ({
       );
     } else if (tmpl === 'stock_update') {
       setDirectMessageText(
-        `সম্মানিত ডিলার ${dealerName}, চাল, আটা, ডাল, তেল ও হোম অ্যাপ্লায়েন্সের নতুন কিস্তি স্টক আপনার নির্দিষ্ট জোনে পৌঁছানোর প্রস্তুতি চলছে।`
+        `সম্মানিত ডিলার ${dealerName}, চাউল, আটা, ডাল, তৈল ও হোম অ্যাপ্লায়েন্সের নতুন কিস্তি স্টক আপনার নির্দিষ্ট জোনে পৌঁছানোর প্রস্তুতি চলছে।`
       );
     }
   };

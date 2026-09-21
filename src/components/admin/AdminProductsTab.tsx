@@ -229,7 +229,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
       <div className="flex flex-wrap gap-2 text-xs">
         {[
           { id: 'all', labelBn: 'সকল পণ্য', labelEn: 'All' },
-          { id: 'consumer', labelBn: 'নিত্যপণ্য (চাল, ডাল, তেল, চিনি)', labelEn: 'Consumer Goods' },
+          { id: 'consumer', labelBn: 'নিত্যপণ্য (চাউল, ডাল, তৈল, চিনি)', labelEn: 'Consumer Goods' },
           { id: 'appliances', labelBn: 'হোম অ্যাপ্লায়েন্স', labelEn: 'Appliances' },
           { id: 'electronics', labelBn: 'ইলেকট্রনিক্স', labelEn: 'Electronics' },
           { id: 'furniture', labelBn: 'ফার্নিচার', labelEn: 'Furniture' },
@@ -352,7 +352,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
                     required
                     value={form.nameBn}
                     onChange={(e) => setForm({ ...form, nameBn: e.target.value })}
-                    placeholder="হোলিনেক্স প্রিমিয়াম চাল / স্মার্ট ফ্রিজ"
+                    placeholder="হোলিনেক্স প্রিমিয়াম চাউল / স্মার্ট ফ্রিজ"
                     className="w-full px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -512,7 +512,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="w-full px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white"
                   >
-                    <option value="consumer">{t('নিত্যপ্রয়োজনীয় পণ্য (চাল, ডাল, তেল, চিনি, ইত্যাদি)', 'Consumer Goods (Rice, Oil, Pulses)')}</option>
+                    <option value="consumer">{t('নিত্যপ্রয়োজনীয় পণ্য (চাউল, ডাল, তৈল, চিনি, ইত্যাদি)', 'Consumer Goods (Rice, Oil, Pulses)')}</option>
                     <option value="appliances">{t('হোম অ্যাপ্লায়েন্স (Home Appliances)', 'Home Appliances')}</option>
                     <option value="electronics">{t('ইলেকট্রনিক্স (Electronics)', 'Electronics')}</option>
                     <option value="furniture">{t('ফার্নিচার (Furniture)', 'Furniture')}</option>

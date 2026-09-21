@@ -14,6 +14,7 @@ import { AdminCardsTab } from './AdminCardsTab';
 import { AdminOrdersSupplyTab } from './AdminOrdersSupplyTab';
 import { AdminCommissionTab } from './AdminCommissionTab';
 import { AdminMessagingTab } from './AdminMessagingTab';
+import { AdminAIAssistantTab } from './AdminAIAssistantTab';
 import {
   Lock,
   LogOut,
@@ -41,6 +42,8 @@ import {
   DollarSign,
   MessageSquare,
   Network,
+  Sparkles,
+  Bot,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -55,6 +58,7 @@ type TabType =
   | 'orders_supply'
   | 'commissions'
   | 'messaging'
+  | 'ai_chat'
   | 'applications'
   | 'products'
   | 'slides'
@@ -558,6 +562,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
             </button>
 
             <button
+              onClick={() => setActiveTab('ai_chat')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'ai_chat'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>{t('এআই লাইভ চ্যাট', 'AI Live Chat')}</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('applications')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'applications'
@@ -710,6 +727,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
                 >
                   <MessageSquare className="w-4 h-4 text-blue-400" />
                   <span>{t('এসএমএস পাঠান', 'Send SMS')}</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('ai_chat')}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>{t('এআই চ্যাট কন্ট্রোল', 'AI Live Chat')}</span>
                 </button>
               </div>
             </div>
@@ -1085,6 +1109,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
             TAB: SMS & MESSAGING GATEWAY
         ==================================================== */}
         {activeTab === 'messaging' && <AdminMessagingTab />}
+
+        {/* ====================================================
+            TAB: REAL AI LIVE CHAT SYSTEM & KNOWLEDGE BASE
+        ==================================================== */}
+        {activeTab === 'ai_chat' && <AdminAIAssistantTab />}
 
         {/* ====================================================
             TAB: SITE SETTINGS
