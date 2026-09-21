@@ -9,6 +9,11 @@ import { AdminSettingsTab } from './AdminSettingsTab';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AdminAuditLogsTab } from './AdminAuditLogsTab';
 import { AdminGuideModal } from './AdminGuideModal';
+import { AdminPeopleTab } from './AdminPeopleTab';
+import { AdminCardsTab } from './AdminCardsTab';
+import { AdminOrdersSupplyTab } from './AdminOrdersSupplyTab';
+import { AdminCommissionTab } from './AdminCommissionTab';
+import { AdminMessagingTab } from './AdminMessagingTab';
 import {
   Lock,
   LogOut,
@@ -31,6 +36,11 @@ import {
   Layers,
   ArrowRight,
   HelpCircle,
+  CreditCard,
+  Truck,
+  DollarSign,
+  MessageSquare,
+  Network,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -40,6 +50,11 @@ interface AdminPortalProps {
 
 type TabType =
   | 'dashboard'
+  | 'people'
+  | 'cards'
+  | 'orders_supply'
+  | 'commissions'
+  | 'messaging'
   | 'applications'
   | 'products'
   | 'slides'
@@ -483,6 +498,66 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
             </button>
 
             <button
+              onClick={() => setActiveTab('people')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'people'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Network className="w-3.5 h-3.5 text-amber-400" />
+              <span>{t('নেটওয়ার্ক হায়ারার্কি', 'Network People')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('cards')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'cards'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+              <span>{t('নায্যমূল্য কার্ড ও শিডিউল', 'Fair Price Cards')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('orders_supply')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'orders_supply'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>{t('অর্ডার ও সাপ্লাই', 'Orders & Supply')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('commissions')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'commissions'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{t('কমিশন ও উইথড্রয়াল', 'Commissions & Payouts')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('messaging')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'messaging'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+              <span>{t('মেসেজিং ও এসএমএস', 'SMS & Messaging')}</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('applications')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'applications'
@@ -609,18 +684,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
 
               <div className="flex flex-wrap gap-2.5">
                 <button
-                  onClick={() => setActiveTab('applications')}
-                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5"
+                  onClick={() => setActiveTab('cards')}
+                  className="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5"
                 >
-                  <Users className="w-4 h-4" />
-                  <span>{t('আবেদনপত্র দেখুন', 'Review Applications')}</span>
+                  <CreditCard className="w-4 h-4" />
+                  <span>{t('কার্ড ও খাদ্য শিডিউল', 'Cards & Rations')}</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('products')}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
+                  onClick={() => setActiveTab('people')}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
                 >
-                  <Package className="w-4 h-4" />
-                  <span>{t('পণ্য পরিচালনা', 'Manage Products')}</span>
+                  <Network className="w-4 h-4 text-amber-400" />
+                  <span>{t('নেটওয়ার্ক টিম', 'Network Tree')}</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('commissions')}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
+                >
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                  <span>{t('উইথড্রয়াল ও কমিশন', 'Payouts')}</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('messaging')}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
+                >
+                  <MessageSquare className="w-4 h-4 text-blue-400" />
+                  <span>{t('এসএমএস পাঠান', 'Send SMS')}</span>
                 </button>
               </div>
             </div>
@@ -971,6 +1060,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
             )}
           </div>
         )}
+
+        {/* ====================================================
+            TAB: NETWORK PEOPLE & HIERARCHY
+        ==================================================== */}
+        {activeTab === 'people' && <AdminPeopleTab />}
+
+        {/* ====================================================
+            TAB: FAIR PRICE CARDS & PRODUCT SCHEDULES
+        ==================================================== */}
+        {activeTab === 'cards' && <AdminCardsTab />}
+
+        {/* ====================================================
+            TAB: ORDERS & SUPPLY CHAIN DISPATCH
+        ==================================================== */}
+        {activeTab === 'orders_supply' && <AdminOrdersSupplyTab />}
+
+        {/* ====================================================
+            TAB: COMMISSIONS LEDGER & WITHDRAWALS
+        ==================================================== */}
+        {activeTab === 'commissions' && <AdminCommissionTab />}
+
+        {/* ====================================================
+            TAB: SMS & MESSAGING GATEWAY
+        ==================================================== */}
+        {activeTab === 'messaging' && <AdminMessagingTab />}
 
         {/* ====================================================
             TAB: SITE SETTINGS

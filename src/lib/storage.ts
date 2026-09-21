@@ -9,6 +9,15 @@ import {
   SiteSettings,
   SlideItem,
   TeamMemberItem,
+  NetworkPerson,
+  FairPriceCardRecord,
+  ProductScheduleItem,
+  OrderRecord,
+  DeliveryRecord,
+  CommissionRecord,
+  WithdrawalRequest,
+  CommissionRule,
+  SmsCampaign,
 } from '../types';
 import {
   initialAdminUsers,
@@ -18,6 +27,15 @@ import {
   initialSiteSettings,
   initialSlides,
   initialTeam,
+  initialNetworkPeople,
+  initialFairPriceCards,
+  initialProductSchedules,
+  initialOrders,
+  initialDeliveries,
+  initialCommissions,
+  initialWithdrawals,
+  initialCommissionRules,
+  initialSmsCampaigns,
 } from './data';
 
 // Helper to safely get / set localStorage with SSR guard
@@ -529,4 +547,224 @@ export const Storage = {
     };
     setLocalItem('holynex_audit_logs', [newLog, ...logs.slice(0, 99)]);
   },
+
+  // Master Network People: Dealers, Sub-Dealers, Workers, Representatives, Customers
+  getNetworkPeople: (): NetworkPerson[] => {
+    return getLocalItem<NetworkPerson[]>('holynex_network_people', initialNetworkPeople);
+  },
+
+  saveNetworkPerson: (person: NetworkPerson): void => {
+    const list = Storage.getNetworkPeople();
+    const existingIdx = list.findIndex((p) => p.id === person.id);
+    let updated: NetworkPerson[];
+    if (existingIdx >= 0) {
+      updated = [...list];
+      updated[existingIdx] = person;
+    } else {
+      updated = [person, ...list];
+    }
+    setLocalItem('holynex_network_people', updated);
+    Storage.addAuditLog(
+      existingIdx >= 0 ? 'UPDATE_PERSON' : 'CREATE_PERSON',
+      person.role.toUpperCase(),
+      `${person.name} (${person.id}) saved with role ${person.role}.`
+    );
+  },
+
+  deleteNetworkPerson: (id: string): void => {
+    const list = Storage.getNetworkPeople();
+    const target = list.find((p) => p.id === id);
+    const updated = list.filter((p) => p.id !== id);
+    setLocalItem('holynex_network_people', updated);
+    if (target) {
+      Storage.addAuditLog('DELETE_PERSON', target.role.toUpperCase(), `${target.name} (${target.id}) was removed.`);
+    }
+  },
+
+  // Fair Price Cards
+  getFairPriceCards: (): FairPriceCardRecord[] => {
+    return getLocalItem<FairPriceCardRecord[]>('holynex_fair_price_cards', initialFairPriceCards);
+  },
+
+  saveFairPriceCard: (card: FairPriceCardRecord): void => {
+    const list = Storage.getFairPriceCards();
+    const idx = list.findIndex((c) => c.id === card.id || c.cardNumber === card.cardNumber);
+    let updated: FairPriceCardRecord[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = card;
+    } else {
+      updated = [card, ...list];
+    }
+    setLocalItem('holynex_fair_price_cards', updated);
+    Storage.addAuditLog('SAVE_CARD', 'FAIR_PRICE_CARD', `Card ${card.cardNumber} saved for customer ${card.customerName}.`);
+  },
+
+  updateCardStatus: (cardId: string, status: FairPriceCardRecord['status']): void => {
+    const list = Storage.getFairPriceCards();
+    const updated = list.map((c) => (c.id === cardId ? { ...c, status } : c));
+    setLocalItem('holynex_fair_price_cards', updated);
+  },
+
+  // Product Schedules (Customer Entitlement & Supply Schedules)
+  getProductSchedules: (): ProductScheduleItem[] => {
+    return getLocalItem<ProductScheduleItem[]>('holynex_product_schedules', initialProductSchedules);
+  },
+
+  saveProductSchedule: (sch: ProductScheduleItem): void => {
+    const list = Storage.getProductSchedules();
+    const idx = list.findIndex((s) => s.id === sch.id);
+    let updated: ProductScheduleItem[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = sch;
+    } else {
+      updated = [sch, ...list];
+    }
+    setLocalItem('holynex_product_schedules', updated);
+    Storage.addAuditLog('SAVE_SCHEDULE', 'PRODUCT_SCHEDULE', `Schedule ${sch.scheduleCode} saved for ${sch.customerName}.`);
+  },
+
+  updateScheduleStatus: (id: string, status: ProductScheduleItem['status']): void => {
+    const list = Storage.getProductSchedules();
+    const updated = list.map((s) => (s.id === id ? { ...s, status } : s));
+    setLocalItem('holynex_product_schedules', updated);
+  },
+
+  // Orders
+  getOrders: (): OrderRecord[] => {
+    return getLocalItem<OrderRecord[]>('holynex_orders', initialOrders);
+  },
+
+  saveOrder: (order: OrderRecord): void => {
+    const list = Storage.getOrders();
+    const idx = list.findIndex((o) => o.id === order.id);
+    let updated: OrderRecord[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = order;
+    } else {
+      updated = [order, ...list];
+    }
+    setLocalItem('holynex_orders', updated);
+  },
+
+  updateOrderStatus: (id: string, status: OrderRecord['status']): void => {
+    const list = Storage.getOrders();
+    const updated = list.map((o) => (o.id === id ? { ...o, status } : o));
+    setLocalItem('holynex_orders', updated);
+  },
+
+  // Deliveries
+  getDeliveries: (): DeliveryRecord[] => {
+    return getLocalItem<DeliveryRecord[]>('holynex_deliveries', initialDeliveries);
+  },
+
+  saveDelivery: (del: DeliveryRecord): void => {
+    const list = Storage.getDeliveries();
+    const idx = list.findIndex((d) => d.id === del.id);
+    let updated: DeliveryRecord[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = del;
+    } else {
+      updated = [del, ...list];
+    }
+    setLocalItem('holynex_deliveries', updated);
+  },
+
+  updateDeliveryStatus: (id: string, status: DeliveryRecord['status']): void => {
+    const list = Storage.getDeliveries();
+    const updated = list.map((d) => (d.id === id ? { ...d, status } : d));
+    setLocalItem('holynex_deliveries', updated);
+  },
+
+  // Commissions
+  getCommissions: (): CommissionRecord[] => {
+    return getLocalItem<CommissionRecord[]>('holynex_commissions', initialCommissions);
+  },
+
+  saveCommission: (comm: CommissionRecord): void => {
+    const list = Storage.getCommissions();
+    const idx = list.findIndex((c) => c.id === comm.id);
+    let updated: CommissionRecord[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = comm;
+    } else {
+      updated = [comm, ...list];
+    }
+    setLocalItem('holynex_commissions', updated);
+  },
+
+  updateCommissionStatus: (id: string, status: CommissionRecord['status']): void => {
+    const list = Storage.getCommissions();
+    const updated = list.map((c) => (c.id === id ? { ...c, status } : c));
+    setLocalItem('holynex_commissions', updated);
+  },
+
+  // Withdrawals
+  getWithdrawals: (): WithdrawalRequest[] => {
+    return getLocalItem<WithdrawalRequest[]>('holynex_withdrawals', initialWithdrawals);
+  },
+
+  saveWithdrawal: (wth: WithdrawalRequest): void => {
+    const list = Storage.getWithdrawals();
+    const idx = list.findIndex((w) => w.id === wth.id);
+    let updated: WithdrawalRequest[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = wth;
+    } else {
+      updated = [wth, ...list];
+    }
+    setLocalItem('holynex_withdrawals', updated);
+  },
+
+  updateWithdrawalStatus: (id: string, status: WithdrawalRequest['status'], adminNote?: string): void => {
+    const list = Storage.getWithdrawals();
+    const updated = list.map((w) =>
+      w.id === id
+        ? {
+            ...w,
+            status,
+            adminNote: adminNote || w.adminNote,
+            processedAt: status === 'paid' ? new Date().toISOString() : w.processedAt,
+          }
+        : w
+    );
+    setLocalItem('holynex_withdrawals', updated);
+    Storage.addAuditLog('WITHDRAWAL_STATUS', 'FINANCE', `Withdrawal ${id} status updated to ${status}.`);
+  },
+
+  // Commission Rules
+  getCommissionRules: (): CommissionRule[] => {
+    return getLocalItem<CommissionRule[]>('holynex_commission_rules', initialCommissionRules);
+  },
+
+  saveCommissionRule: (rule: CommissionRule): void => {
+    const list = Storage.getCommissionRules();
+    const idx = list.findIndex((r) => r.id === rule.id);
+    let updated: CommissionRule[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = rule;
+    } else {
+      updated = [rule, ...list];
+    }
+    setLocalItem('holynex_commission_rules', updated);
+  },
+
+  // SMS & Messaging Campaigns
+  getSmsCampaigns: (): SmsCampaign[] => {
+    return getLocalItem<SmsCampaign[]>('holynex_sms_campaigns', initialSmsCampaigns);
+  },
+
+  saveSmsCampaign: (camp: SmsCampaign): void => {
+    const list = Storage.getSmsCampaigns();
+    const updated = [camp, ...list];
+    setLocalItem('holynex_sms_campaigns', updated);
+    Storage.addAuditLog('SMS_CAMPAIGN', 'MESSAGING', `Campaign "${camp.title}" dispatched to ${camp.recipientsCount} recipients.`);
+  },
 };
+

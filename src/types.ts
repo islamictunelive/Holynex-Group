@@ -174,3 +174,140 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
 }
+
+// Master Network People Hierarchy:
+// Admin -> Dealer -> Sub-Dealer -> Worker -> Representative -> Customer
+export type PersonRole = 'dealer' | 'sub_dealer' | 'worker' | 'representative' | 'customer';
+
+export interface NetworkPerson {
+  id: string; // e.g. DLR-000123, SUB-000201, WRK-000301, REP-000401, CUS-000501
+  role: PersonRole;
+  name: string;
+  mobile: string;
+  email?: string;
+  address: string;
+  area: string;
+  parentDealerId?: string;
+  parentSubDealerId?: string;
+  parentWorkerId?: string;
+  parentRepresentativeId?: string;
+  status: 'active' | 'suspended' | 'pending';
+  photoUrl?: string;
+  nid?: string;
+  tradeLicense?: string;
+  joinedDate: string;
+  commissionBalance: number;
+  totalCommissionEarned: number;
+}
+
+export interface FairPriceCardRecord {
+  id: string;
+  cardNumber: string; // e.g. FPC-2026-8899
+  customerId: string;
+  customerName: string;
+  customerMobile: string;
+  representativeId: string;
+  representativeName: string;
+  issueDate: string;
+  expiryDate: string;
+  status: 'active' | 'blocked' | 'expired' | 'pending_payment';
+  cardFee: number;
+  paidFee: number;
+  remainingFee: number;
+  monthlyQuotaKg: number;
+}
+
+export interface ProductScheduleItem {
+  id: string;
+  scheduleCode: string; // e.g. SCH-2026-101
+  customerId: string;
+  customerName: string;
+  customerMobile: string;
+  cardNumber: string;
+  productNameBn: string;
+  productNameEn: string;
+  quantity: string; // e.g. ১০ কেজি
+  allocatedPrice: number; // e.g. 700
+  retailPrice: number; // e.g. 950
+  subsidySavings: number; // e.g. 250
+  scheduledDate: string; // e.g. 2026-10-10
+  status: 'Scheduled' | 'Ready for Pickup' | 'Delivered' | 'Skipped';
+  deliveryPoint: string;
+  representativeId: string;
+}
+
+export interface OrderRecord {
+  id: string; // e.g. ORD-1002
+  type: 'fair_price_staple' | 'installment_appliance';
+  customerName: string;
+  customerMobile: string;
+  productName: string;
+  quantity: number;
+  totalAmount: number;
+  status: 'pending' | 'processing' | 'ready' | 'delivered' | 'cancelled';
+  date: string;
+  deliveryPerson: string;
+}
+
+export interface DeliveryRecord {
+  id: string; // e.g. DEL-501
+  orderId: string;
+  recipientName: string;
+  recipientMobile: string;
+  address: string;
+  productDetails: string;
+  deliveryDate: string;
+  status: 'pending' | 'in_transit' | 'delivered' | 'failed';
+  assignedRepresentative: string;
+  otpVerified: boolean;
+}
+
+export interface CommissionRecord {
+  id: string; // e.g. COM-770
+  recipientId: string;
+  recipientName: string;
+  recipientRole: 'dealer' | 'sub_dealer' | 'worker' | 'representative';
+  sourceEvent: string;
+  sourceReferenceId: string;
+  amount: number;
+  ratePercentage?: number;
+  status: 'pending' | 'approved' | 'paid' | 'cancelled';
+  createdAt: string;
+  paidAt?: string;
+}
+
+export interface WithdrawalRequest {
+  id: string; // e.g. WTH-330
+  requesterId: string;
+  requesterName: string;
+  requesterRole: 'dealer' | 'sub_dealer' | 'worker' | 'representative';
+  amount: number;
+  payoutMethod: 'bKash' | 'Nagad' | 'Bank Transfer';
+  payoutDetails: string;
+  status: 'pending' | 'approved' | 'paid' | 'rejected';
+  requestedAt: string;
+  processedAt?: string;
+  adminNote?: string;
+}
+
+export interface CommissionRule {
+  id: string;
+  role: 'dealer' | 'sub_dealer' | 'worker' | 'representative';
+  eventName: string;
+  rewardType: 'flat' | 'percentage';
+  amount: number;
+  description: string;
+  active: boolean;
+}
+
+export interface SmsCampaign {
+  id: string;
+  title: string;
+  targetGroup: 'all_dealers' | 'all_reps' | 'all_customers' | 'selected';
+  message: string;
+  recipientsCount: number;
+  channel: 'sms' | 'push' | 'in_app';
+  status: 'sent' | 'scheduled' | 'draft';
+  sentAt: string;
+}
+
