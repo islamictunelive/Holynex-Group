@@ -133,6 +133,8 @@ export interface SiteSettings {
   youtubeUrl: string;
   whatsappNumber: string;
   messengerUrl: string;
+  websiteUrl?: string;
+  dealerApplicationUrl?: string;
   fairPriceCardInfoBn: string;
   fairPriceCardInfoEn: string;
   installmentInfoBn: string;
@@ -235,15 +237,25 @@ export interface FairPriceCardRecord {
   customerId: string;
   customerName: string;
   customerMobile: string;
-  representativeId: string;
-  representativeName: string;
+  representativeId?: string;
+  representativeName?: string;
+  assignedRepresentative?: string;
+  parentDealerId?: string;
+  customerNid?: string;
+  customerAddress?: string;
+  customerArea?: string;
   issueDate: string;
   expiryDate: string;
   status: 'active' | 'blocked' | 'expired' | 'pending_payment';
-  cardFee: number;
-  paidFee: number;
-  remainingFee: number;
-  monthlyQuotaKg: number;
+  cardFee?: number;
+  paidFee?: number;
+  remainingFee?: number;
+  monthlyQuotaKg?: number;
+  monthlyGroceryLimit?: number;
+  groceryPurchasedThisMonth?: number;
+  applianceCreditLimit?: number;
+  applianceCreditUsed?: number;
+  totalSavings?: number;
 }
 
 export interface ProductScheduleItem {
@@ -372,6 +384,8 @@ export interface AISettings {
   enableCustomerLookup: boolean;
   enableDealerLookup: boolean;
   maxDailyRequestsPerIp: number;
+  quickQuestionsBn?: string[];
+  quickQuestionsEn?: string[];
 }
 
 export interface AIChatQueryLog {
@@ -397,5 +411,116 @@ export interface AIChatAnalytics {
   englishPercentage: number;
   topQueries: { query: string; count: number; category: string }[];
   recentLogs: AIChatQueryLog[];
+}
+
+// ----------------------------------------------------
+// 6-7 Configurable Advertisement Slots & Ads System
+// ----------------------------------------------------
+export type AdSlotId =
+  | 'AD_SLOT_01'
+  | 'AD_SLOT_02'
+  | 'AD_SLOT_03'
+  | 'AD_SLOT_04'
+  | 'AD_SLOT_05'
+  | 'AD_SLOT_06'
+  | 'AD_SLOT_07';
+
+export interface AdSlotDefinition {
+  id: AdSlotId;
+  nameBn: string;
+  nameEn: string;
+  locationDescriptionBn: string;
+  locationDescriptionEn: string;
+  defaultDimensions: string;
+  active: boolean;
+}
+
+export interface AdvertisementItem {
+  id: string; // e.g. AD-2026-001
+  companyName: string;
+  title: string;
+  slotId: AdSlotId;
+  type: 'image_banner' | 'external_url' | 'html_code';
+  imageUrl?: string;
+  destinationUrl?: string;
+  htmlCode?: string; // Sandboxed in an isolated iframe for security
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  priority: number; // 1 (lowest) to 10 (highest)
+  showOnDesktop: boolean;
+  showOnMobile: boolean;
+  active: boolean;
+  impressions: number;
+  clicks: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ----------------------------------------------------
+// Distribution Hierarchy & Privacy Models
+// ----------------------------------------------------
+export interface HierarchyRelationship {
+  id: string;
+  customerId?: string;
+  workerId: string;
+  subDealerId?: string;
+  dealerId: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Scoped Customer view for Dealer & Sub-Dealer (Strict Financial Privacy Enforced)
+export interface NetworkCustomerSafeView {
+  id: string;
+  name: string;
+  mobile: string;
+  area: string;
+  address?: string;
+  photoUrl?: string;
+  status: 'active' | 'suspended' | 'pending';
+  joinedDate: string;
+  assignedWorkerId: string;
+  assignedWorkerName?: string;
+  assignedSubDealerId?: string;
+  assignedSubDealerName?: string;
+  assignedDealerId: string;
+  assignedDealerName?: string;
+  // Financial amounts are strictly omitted unless Admin explicitly grants permission
+}
+
+export interface HierarchyTransaction {
+  id: string; // e.g. TXN-9001
+  customerId: string;
+  customerName: string;
+  customerMobile: string;
+  workerId: string;
+  workerName: string;
+  subDealerId?: string;
+  subDealerName?: string;
+  dealerId: string;
+  dealerName: string;
+  productId?: string;
+  productName: string;
+  productType?: string;
+  quantity: number;
+  totalAmount: number;
+  status: 'completed' | 'pending' | 'cancelled';
+  date: string;
+  createdAt?: string;
+}
+
+export interface CommissionLedgerEntry {
+  id: string; // e.g. COM-LEDGER-001
+  transactionId: string;
+  recipientId: string;
+  recipientName: string;
+  recipientRole: 'dealer' | 'sub_dealer' | 'worker';
+  commissionType: 'percentage' | 'flat';
+  commissionRate: number; // e.g. 5 for 5%
+  commissionAmount: number; // calculated ৳
+  calculationBase: number; // purchase amount base
+  status: 'pending' | 'approved' | 'paid' | 'cancelled' | 'reversed';
+  createdAt: string;
+  updatedAt?: string;
 }
 

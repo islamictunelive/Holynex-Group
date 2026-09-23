@@ -302,8 +302,8 @@ export const AdminCardsTab: React.FC = () => {
                     </td>
 
                     <td className="px-4 py-3.5">
-                      <span className="font-mono text-emerald-400 font-bold">৳ {card.paidFee}</span>
-                      {card.remainingFee > 0 && (
+                      <span className="font-mono text-emerald-400 font-bold">৳ {card.paidFee || 0}</span>
+                      {(card.remainingFee || 0) > 0 && (
                         <span className="text-rose-400 text-[10px] block font-mono">বাকি: ৳ {card.remainingFee}</span>
                       )}
                     </td>

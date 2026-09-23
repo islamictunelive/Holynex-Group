@@ -235,27 +235,61 @@ export const AboutView: React.FC<AboutViewProps> = ({ navigate }) => {
           </div>
         </div>
 
-        {/* Corporate Address Bar */}
-        <div id="contact" className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 scroll-mt-24">
+        {/* Corporate Address & Official Contacts */}
+        <div id="contact" className="bg-slate-900 text-white rounded-3xl p-8 sm:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 scroll-mt-24 border border-slate-800">
           <div className="space-y-2">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
-              {t('প্রধান কার্যালয়', 'Corporate Head Office')}
+              {t('প্রধান কার্যালয় ও অফিসিয়াল যোগাযোগ', 'Corporate Head Office & Official Contacts')}
             </span>
             <h3 className="text-xl sm:text-2xl font-bold">
               {t('৭১২, কমিশনার রোড, জুরাইন, ঢাকা', '712, Commissioner Road, Jurain, Dhaka')}
             </h3>
             <p className="text-xs sm:text-sm text-slate-400">
-              {t('যাত্রাবাড়ী, শ্যামপুর এলাকা সংলগ্ন • সরাসরি যোগাযোগের হটলাইন: 01307835260', 'Adjacent to Jatrabari/Shyampur • Corporate Helpline: 01307835260')}
+              {t('যাত্রাবাড়ী, শ্যামপুর এলাকা সংলগ্ন • অফিস সময়: শনি - বৃহস্পতি (সকাল ৯:০০ - সন্ধ্যা ৭:০০)', 'Adjacent to Jatrabari/Shyampur • Office Hours: Sat - Thu (9:00 AM - 7:00 PM)')}
             </p>
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <a
+                href="https://www.facebook.com/holynexgroup"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 underline underline-offset-4"
+              >
+                Facebook: facebook.com/holynexgroup
+              </a>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <a
+                href="https://www.youtube.com/@holynexgroup1"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 underline underline-offset-4"
+              >
+                YouTube: @holynexgroup1
+              </a>
+            </div>
           </div>
 
-          <div className="shrink-0 flex items-center gap-3">
+          <div className="shrink-0 flex flex-wrap items-center gap-3">
             <a
               href="tel:01307835260"
-              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm transition-all flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm transition-all flex items-center gap-2 shadow-md shadow-amber-500/20"
             >
               <Phone className="w-4 h-4" />
               <span>01307835260</span>
+            </a>
+            <a
+              href="https://wa.me/8801307835260"
+              target="_blank"
+              rel="noreferrer"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all flex items-center gap-2 shadow-md shadow-emerald-600/20"
+            >
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              <span>WhatsApp</span>
+            </a>
+            <a
+              href="https://holynex-group-bay.vercel.app/#/dealer-application"
+              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold text-sm transition-all flex items-center gap-2"
+            >
+              <span>{t('ডিলার আবেদন', 'Dealer Apply')}</span>
             </a>
           </div>
         </div>

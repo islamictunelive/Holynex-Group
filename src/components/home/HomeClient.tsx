@@ -20,6 +20,7 @@ import {
   Search,
 } from 'lucide-react';
 import { GoldParticleCanvas } from './GoldParticleCanvas';
+import { AdvertisementBanner } from '../common/AdvertisementBanner';
 
 interface SlideProp {
   id: string;
@@ -116,6 +117,9 @@ export default function HomeClient({
           </div>
         </div>
       )}
+
+      {/* Corporate Ad Slot 01: Top Banner / Notice */}
+      <AdvertisementBanner slotId="AD_SLOT_01" />
 
       {/* ----------------------------------------------------
           B. PREMIUM LUXURY HERO SECTION (Matching Screenshot)
@@ -417,6 +421,11 @@ export default function HomeClient({
           </div>
         </div>
       </section>
+
+      {/* Corporate Ad Slot 03: Mid-page Section Divider Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 w-full">
+        <AdvertisementBanner slotId="AD_SLOT_03" />
+      </div>
 
       {/* ----------------------------------------------------
           D. FAIR PRICE CARD SYSTEM (Detailed Breakdown)

@@ -13,6 +13,7 @@ import {
   Copy,
   ArrowRight,
   ExternalLink,
+  Phone,
 } from 'lucide-react';
 
 interface DealerApplicationFormProps {
@@ -606,6 +607,67 @@ export const DealerApplicationForm: React.FC<DealerApplicationFormProps> = ({ na
             </p>
           </div>
         </form>
+
+        {/* Official Dealership Support & Contact Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-white space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+              <span className="text-amber-400 font-bold text-xs uppercase tracking-wider block">
+                {t('অফিসিয়াল ডিলার হেল্পডেস্ক', 'Official Dealership Support')}
+              </span>
+              <h4 className="text-base sm:text-lg font-extrabold text-white mt-0.5">
+                {t('আবেদন সংক্রান্ত যেকোনো জিজ্ঞাসা বা সহযোগিতায়', 'Questions regarding your dealership application?')}
+              </h4>
+            </div>
+            <div className="flex items-center gap-3">
+              <a
+                href="https://wa.me/8801307835260"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+              >
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                <span>WhatsApp: 01307835260</span>
+              </a>
+              <a
+                href="tel:01307835260"
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>01307835260</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-400 pt-1">
+            <div>
+              <span className="text-slate-300 font-semibold block">{t('প্রধান কার্যালয়:', 'Head Office:')}</span>
+              <span>{t('৭১২, কমিশনার রোড, জুরাইন, ঢাকা', '712 Commissioner Rd, Jurain, Dhaka')}</span>
+            </div>
+            <div>
+              <span className="text-slate-300 font-semibold block">{t('ফেসবুক পেজ:', 'Facebook Page:')}</span>
+              <a
+                href="https://www.facebook.com/holynexgroup"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-400 hover:underline"
+              >
+                facebook.com/holynexgroup
+              </a>
+            </div>
+            <div>
+              <span className="text-slate-300 font-semibold block">{t('ইউটিউব চ্যানেল:', 'YouTube Channel:')}</span>
+              <a
+                href="https://www.youtube.com/@holynexgroup1"
+                target="_blank"
+                rel="noreferrer"
+                className="text-red-400 hover:underline"
+              >
+                youtube.com/@holynexgroup1
+              </a>
+            </div>
+          </div>
+        </div>
 
         {/* Agreement Modal Dialog */}
         {showAgreementModal && (

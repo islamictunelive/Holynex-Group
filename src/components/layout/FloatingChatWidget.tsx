@@ -36,6 +36,38 @@ interface ChatMessage {
 
 const STORAGE_KEY = 'holynex_ai_live_chat_history';
 
+// Helper to render text with clickable links
+const renderMessageContent = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s\)]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (urlRegex.test(part)) {
+      let url = part;
+      let trailingPunct = '';
+      if (/[.,;]$/.test(url)) {
+        trailingPunct = url.slice(-1);
+        url = url.slice(0, -1);
+      }
+      return (
+        <React.Fragment key={index}>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-amber-400 hover:text-amber-300 underline underline-offset-2 break-all font-semibold inline-flex items-center gap-0.5 mx-0.5"
+          >
+            <span>{url}</span>
+            <ExternalLink className="w-2.5 h-2.5 inline shrink-0" />
+          </a>
+          {trailingPunct}
+        </React.Fragment>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 export const FloatingChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { lang: globalLang, t } = useLanguage();
@@ -103,18 +135,26 @@ export const FloatingChatWidget: React.FC = () => {
         suggestedQuestions:
           chatLang === 'bn'
             ? [
-                'ফেয়ার প্রাইস কার্ড কী এবং কীভাবে পাব?',
-                'কিস্তির নিয়মাবলী ও ডাউন পেমেন্ট কত?',
-                'অনুমোদিত ডিলার আবেদন প্রক্রিয়া',
-                'আমার আবেদন বা কার্ডের স্ট্যাটাস',
-                'প্রধান কার্যালয়ের ঠিকানা ও ফোন',
+                'নায্যমূল্য কার্ড সম্পর্কে জানুন',
+                'Customer সুবিধা দেখুন',
+                'ডিলার হতে চাই',
+                'ডিলার আবেদন কীভাবে করব?',
+                'ডিলার আবেদন স্ট্যাটাস',
+                'কিস্তি সুবিধা সম্পর্কে জানুন',
+                'পণ্যের তালিকা দেখুন',
+                'যোগাযোগ করুন',
+                'WhatsApp-এ যোগাযোগ করুন',
               ]
             : [
-                'What is the Fair Price Card & how to get it?',
-                'What are the installment terms & down payment?',
-                'How to apply for an Authorized Dealership?',
-                'Track my application or card status',
-                'Head Office location & hotline',
+                'Learn about Fair Price Card',
+                'View Customer Benefits',
+                'Become a Dealer',
+                'How to apply for dealership?',
+                'Check Dealer Application Status',
+                'Learn about Installment Benefits',
+                'View Product Catalog',
+                'Contact Us',
+                'Contact via WhatsApp',
               ],
       },
     ];
@@ -241,14 +281,26 @@ export const FloatingChatWidget: React.FC = () => {
         suggestedQuestions:
           chatLang === 'bn'
             ? [
-                'ফেয়ার প্রাইস কার্ড কী এবং কীভাবে পাব?',
-                'কিস্তির নিয়মাবলী ও ডাউন পেমেন্ট কত?',
-                'অনুমোদিত ডিলার আবেদন প্রক্রিয়া',
+                'নায্যমূল্য কার্ড সম্পর্কে জানুন',
+                'Customer সুবিধা দেখুন',
+                'ডিলার হতে চাই',
+                'ডিলার আবেদন কীভাবে করব?',
+                'ডিলার আবেদন স্ট্যাটাস',
+                'কিস্তি সুবিধা সম্পর্কে জানুন',
+                'পণ্যের তালিকা দেখুন',
+                'যোগাযোগ করুন',
+                'WhatsApp-এ যোগাযোগ করুন',
               ]
             : [
-                'What is the Fair Price Card & how to get it?',
-                'What are the installment terms & down payment?',
-                'How to apply for an Authorized Dealership?',
+                'Learn about Fair Price Card',
+                'View Customer Benefits',
+                'Become a Dealer',
+                'How to apply for dealership?',
+                'Check Dealer Application Status',
+                'Learn about Installment Benefits',
+                'View Product Catalog',
+                'Contact Us',
+                'Contact via WhatsApp',
               ],
       };
       setMessages([welcome]);
@@ -336,18 +388,20 @@ export const FloatingChatWidget: React.FC = () => {
           <div className="bg-slate-900/90 border-b border-amber-500/20 px-3 py-1.5 flex items-center justify-between text-[11px] text-slate-300 shrink-0">
             <div className="flex items-center gap-2">
               <a
-                href={`tel:${aiSettings.supportPhone}`}
+                href="tel:01307835260"
                 className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 font-semibold transition-colors"
+                title="হটলাইনে কল করুন"
               >
                 <Phone className="w-3 h-3" />
-                <span>{aiSettings.supportPhone}</span>
+                <span>01307835260</span>
               </a>
               <span className="text-slate-600">|</span>
               <a
-                href={`https://wa.me/88${aiSettings.supportWhatsapp}`}
+                href="https://wa.me/8801307835260"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+                title="হোয়াটসঅ্যাপে যোগাযোগ"
               >
                 <MessageCircle className="w-3 h-3" />
                 <span>WhatsApp</span>
@@ -408,7 +462,7 @@ export const FloatingChatWidget: React.FC = () => {
 
                   {/* Message Content */}
                   <div className="leading-relaxed whitespace-pre-line text-[12.5px]">
-                    {msg.text}
+                    {renderMessageContent(msg.text)}
                   </div>
 
                   {/* Human Escalation Card inside Message */}
@@ -420,20 +474,20 @@ export const FloatingChatWidget: React.FC = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <a
-                          href={`tel:${aiSettings.supportPhone}`}
+                          href="tel:01307835260"
                           className="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-[11px] flex items-center gap-1 hover:bg-amber-400 transition-colors shadow"
                         >
                           <Phone className="w-3 h-3" />
-                          <span>{aiSettings.supportPhone}</span>
+                          <span>01307835260</span>
                         </a>
                         <a
-                          href={`https://wa.me/88${aiSettings.supportWhatsapp}`}
+                          href="https://wa.me/8801307835260"
                           target="_blank"
                           rel="noreferrer"
                           className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 hover:bg-emerald-500 transition-colors shadow"
                         >
                           <MessageCircle className="w-3 h-3" />
-                          <span>WhatsApp</span>
+                          <span>WhatsApp (01307835260)</span>
                         </a>
                       </div>
                     </div>

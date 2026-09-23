@@ -285,6 +285,48 @@ export const CustomerBenefitsView: React.FC<CustomerBenefitsViewProps> = ({ navi
             >
               {t('ডিলারশিপ হতে আগ্রহী?', 'Interested in Dealership?')}
             </button>
+            <a
+              href="https://wa.me/8801307835260"
+              target="_blank"
+              rel="noreferrer"
+              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+            >
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              <span>WhatsApp: 01307835260</span>
+            </a>
+            <a
+              href="tel:01307835260"
+              className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-sm border border-amber-500/30 transition-all flex items-center gap-2"
+            >
+              <span>হটলাইন: 01307835260</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Official Social & Support Bar */}
+        <div className="p-6 bg-slate-100 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="font-bold text-slate-900">{t('অফিসিয়াল মাধ্যম:', 'Official Channels:')}</span>
+            <span>{t('৭১২, কমিশনার রোড, জুরাইন, ঢাকা', '712 Commissioner Rd, Jurain, Dhaka')}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://www.facebook.com/holynexgroup"
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 hover:underline font-semibold"
+            >
+              Facebook: /holynexgroup
+            </a>
+            <span>•</span>
+            <a
+              href="https://www.youtube.com/@holynexgroup1"
+              target="_blank"
+              rel="noreferrer"
+              className="text-red-600 hover:underline font-semibold"
+            >
+              YouTube: @holynexgroup1
+            </a>
           </div>
         </div>
       </div>

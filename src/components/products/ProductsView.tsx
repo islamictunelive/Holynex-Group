@@ -13,6 +13,7 @@ import {
   Store,
   ChevronRight,
 } from 'lucide-react';
+import { AdvertisementBanner } from '../common/AdvertisementBanner';
 
 interface ProductsViewProps {
   products: ProductItem[];
@@ -97,6 +98,11 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               'All items feature verified manufacturer warranty, minimal down payment, and 6 to 24 months equal installment tenures.'
             )}
           </p>
+        </div>
+
+        {/* Corporate Ad Slot 04: Product Page Header Banner */}
+        <div className="mb-8">
+          <AdvertisementBanner slotId="AD_SLOT_04" />
         </div>
 
         {/* Filters & Search Controls */}

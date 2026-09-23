@@ -24,6 +24,11 @@ import {
   AIChatQueryLog,
   PortalUserSession,
   CustomerPaymentRecord,
+  AdSlotDefinition,
+  AdvertisementItem,
+  HierarchyTransaction,
+  CommissionLedgerEntry,
+  NetworkCustomerSafeView,
 } from '../types';
 import {
   initialAdminUsers,
@@ -43,6 +48,10 @@ import {
   initialCommissionRules,
   initialSmsCampaigns,
   initialCustomerPayments,
+  initialAdSlots,
+  initialAdvertisements,
+  initialHierarchyTransactions,
+  initialCommissionLedgers,
 } from './data';
 import {
   initialAISettings,
@@ -1010,6 +1019,448 @@ export const Storage = {
         p.mobile.replace(/\D/g, '').includes(cleanId.replace(/\D/g, '')) ||
         (p.email && p.email.toLowerCase() === cleanId)
     );
+  },
+
+  // ----------------------------------------------------
+  // Advertisements & Slots Management
+  // ----------------------------------------------------
+  getAdSlots: (): AdSlotDefinition[] => {
+    return getLocalItem<AdSlotDefinition[]>('holynex_ad_slots', initialAdSlots);
+  },
+
+  getAdvertisements: (): AdvertisementItem[] => {
+    return getLocalItem<AdvertisementItem[]>('holynex_advertisements', initialAdvertisements);
+  },
+
+  saveAdvertisement: (ad: AdvertisementItem): void => {
+    const list = Storage.getAdvertisements();
+    const idx = list.findIndex((a) => a.id === ad.id);
+    let updated: AdvertisementItem[];
+    if (idx >= 0) {
+      updated = [...list];
+      updated[idx] = { ...ad, updatedAt: new Date().toISOString() };
+    } else {
+      updated = [{ ...ad, createdAt: new Date().toISOString() }, ...list];
+    }
+    setLocalItem('holynex_advertisements', updated);
+    Storage.addAuditLog(
+      idx >= 0 ? 'AD_UPDATED' : 'AD_CREATED',
+      'MARKETING',
+      `Advertisement "${ad.title}" for ${ad.companyName} (${ad.slotId}) was saved.`
+    );
+  },
+
+  deleteAdvertisement: (id: string): void => {
+    const list = Storage.getAdvertisements();
+    const target = list.find((a) => a.id === id);
+    const updated = list.filter((a) => a.id !== id);
+    setLocalItem('holynex_advertisements', updated);
+    if (target) {
+      Storage.addAuditLog('AD_DELETED', 'MARKETING', `Advertisement "${target.title}" (${id}) was deleted.`);
+    }
+  },
+
+  toggleAdvertisementStatus: (id: string): void => {
+    const list = Storage.getAdvertisements();
+    const target = list.find((a) => a.id === id);
+    if (!target) return;
+    const updated = list.map((a) => (a.id === id ? { ...a, active: !a.active } : a));
+    setLocalItem('holynex_advertisements', updated);
+    Storage.addAuditLog(
+      'AD_STATUS_TOGGLE',
+      'MARKETING',
+      `Advertisement ${id} set to ${!target.active ? 'ACTIVE' : 'INACTIVE'}.`
+    );
+  },
+
+  recordAdImpression: (id: string): void => {
+    const list = Storage.getAdvertisements();
+    const updated = list.map((a) => (a.id === id ? { ...a, impressions: (a.impressions || 0) + 1 } : a));
+    setLocalItem('holynex_advertisements', updated);
+  },
+
+  recordAdClick: (id: string): void => {
+    const list = Storage.getAdvertisements();
+    const updated = list.map((a) => (a.id === id ? { ...a, clicks: (a.clicks || 0) + 1 } : a));
+    setLocalItem('holynex_advertisements', updated);
+  },
+
+  getAdvertisementsBySlot: (slotId: string): AdvertisementItem[] => {
+    return Storage.getAdvertisements().filter((a) => a.slotId === slotId && a.active);
+  },
+
+  incrementAdImpression: (id: string): void => {
+    Storage.recordAdImpression(id);
+  },
+
+  incrementAdClick: (id: string): void => {
+    Storage.recordAdClick(id);
+  },
+
+  saveCard: (card: FairPriceCardRecord): void => {
+    Storage.saveFairPriceCard(card);
+  },
+
+  // ----------------------------------------------------
+  // Hierarchy Validation & Registration Logic (Strict No-Orphan Rule)
+  // ----------------------------------------------------
+  validateHierarchy: (person: {
+    role: string;
+    parentDealerId?: string;
+    parentSubDealerId?: string;
+    parentWorkerId?: string;
+  }): {
+    valid: boolean;
+    error?: string;
+    resolvedDealerId?: string;
+    resolvedSubDealerId?: string;
+    workerName?: string;
+  } => {
+    const allPeople = Storage.getNetworkPeople();
+
+    if (person.role === 'dealer') {
+      return { valid: true };
+    }
+
+    // Sub-Dealer: Must have valid Main Dealer
+    if (person.role === 'sub_dealer') {
+      if (!person.parentDealerId) {
+        return { valid: false, error: 'সাব-ডিলার রেজিস্ট্রেশনে মূল ডিলার (Main Dealer) নির্বাচন করা বাধ্যতামূলক।' };
+      }
+      const dealer = allPeople.find((p) => p.id === person.parentDealerId && p.role === 'dealer');
+      if (!dealer) {
+        return { valid: false, error: 'নির্বাচিত মূল ডিলারটি সিস্টেমে বিদ্যমান নেই।' };
+      }
+      return { valid: true, resolvedDealerId: dealer.id };
+    }
+
+    // Worker: Must have either Main Dealer directly OR Sub-Dealer (with matching Main Dealer)
+    if (person.role === 'worker') {
+      if (!person.parentDealerId && !person.parentSubDealerId) {
+        return { valid: false, error: 'কর্মীর জন্য মূল ডিলার অথবা সাব-ডিলার নির্বাচন করা আবশ্যক।' };
+      }
+
+      if (person.parentSubDealerId) {
+        const subDealer = allPeople.find((p) => p.id === person.parentSubDealerId && p.role === 'sub_dealer');
+        if (!subDealer) {
+          return { valid: false, error: 'নির্বাচিত সাব-ডিলারটি সিস্টেমে বিদ্যমান নেই।' };
+        }
+        if (person.parentDealerId && subDealer.parentDealerId !== person.parentDealerId) {
+          return { valid: false, error: 'নির্বাচিত সাব-ডিলারটি নির্দিষ্ট মূল ডিলারের অধীনস্থ নয়।' };
+        }
+        return {
+          valid: true,
+          resolvedDealerId: subDealer.parentDealerId,
+          resolvedSubDealerId: subDealer.id,
+        };
+      }
+
+      // Direct under Main Dealer
+      const dealer = allPeople.find((p) => p.id === person.parentDealerId && p.role === 'dealer');
+      if (!dealer) {
+        return { valid: false, error: 'নির্বাচিত মূল ডিলারটি সিস্টেমে বিদ্যমান নেই।' };
+      }
+      return { valid: true, resolvedDealerId: dealer.id };
+    }
+
+    // Customer: Must be assigned to an authorized Worker
+    if (person.role === 'customer') {
+      if (!person.parentWorkerId) {
+        return { valid: false, error: 'গ্রাহক নিবন্ধনের জন্য অবশ্যই একজন দায়িত্বপ্রাপ্ত ফিল্ড কর্মী (Worker) নির্বাচন করতে হবে।' };
+      }
+      const worker = allPeople.find((p) => p.id === person.parentWorkerId && p.role === 'worker');
+      if (!worker) {
+        return { valid: false, error: 'নির্বাচিত কর্মীটি সিস্টেমে বিদ্যমান নেই।' };
+      }
+
+      return {
+        valid: true,
+        resolvedDealerId: worker.parentDealerId,
+        resolvedSubDealerId: worker.parentSubDealerId,
+        workerName: worker.name,
+      };
+    }
+
+    return { valid: true };
+  },
+
+  // Transfer Worker to another Dealer or Sub-Dealer (Admin Only)
+  transferWorker: (
+    workerId: string,
+    newParentType: 'dealer' | 'sub_dealer',
+    newParentId: string,
+    performedBy: string = 'Admin'
+  ): { success: boolean; error?: string } => {
+    const list = Storage.getNetworkPeople();
+    const worker = list.find((p) => p.id === workerId && p.role === 'worker');
+    if (!worker) return { success: false, error: 'কর্মী পাওয়া যায়নি।' };
+
+    let newDealerId = '';
+    let newSubDealerId: string | undefined = undefined;
+
+    if (newParentType === 'dealer') {
+      const dealer = list.find((p) => p.id === newParentId && p.role === 'dealer');
+      if (!dealer) return { success: false, error: 'মূল ডিলার পাওয়া যায়নি।' };
+      newDealerId = dealer.id;
+    } else {
+      const subDealer = list.find((p) => p.id === newParentId && p.role === 'sub_dealer');
+      if (!subDealer || !subDealer.parentDealerId) return { success: false, error: 'সাব-ডিলার পাওয়া যায়নি।' };
+      newSubDealerId = subDealer.id;
+      newDealerId = subDealer.parentDealerId;
+    }
+
+    const prevHierarchy = `Dealer: ${worker.parentDealerId || 'none'}, Sub: ${worker.parentSubDealerId || 'none'}`;
+    const newHierarchy = `Dealer: ${newDealerId}, Sub: ${newSubDealerId || 'none'}`;
+
+    // Update worker and all customers under this worker
+    const updated = list.map((p) => {
+      if (p.id === workerId) {
+        return {
+          ...p,
+          parentDealerId: newDealerId,
+          parentSubDealerId: newSubDealerId,
+        };
+      }
+      if (p.role === 'customer' && p.parentWorkerId === workerId) {
+        return {
+          ...p,
+          parentDealerId: newDealerId,
+          parentSubDealerId: newSubDealerId,
+        };
+      }
+      return p;
+    });
+
+    setLocalItem('holynex_network_people', updated);
+    Storage.addAuditLog(
+      'TRANSFER_WORKER',
+      'HIERARCHY',
+      `Worker ${worker.name} (${worker.id}) transferred from [${prevHierarchy}] to [${newHierarchy}] by ${performedBy}.`
+    );
+
+    return { success: true };
+  },
+
+  // Transfer Customer to another Worker (Admin Only)
+  transferCustomer: (
+    customerId: string,
+    newWorkerId: string,
+    performedBy: string = 'Admin'
+  ): { success: boolean; error?: string } => {
+    const list = Storage.getNetworkPeople();
+    const customer = list.find((p) => p.id === customerId && p.role === 'customer');
+    if (!customer) return { success: false, error: 'গ্রাহক পাওয়া যায়নি।' };
+
+    const newWorker = list.find((p) => p.id === newWorkerId && p.role === 'worker');
+    if (!newWorker) return { success: false, error: 'নতুন কর্মী পাওয়া যায়নি।' };
+
+    const prevWorker = customer.parentWorkerId || 'none';
+    const updated = list.map((p) => {
+      if (p.id === customerId) {
+        return {
+          ...p,
+          parentWorkerId: newWorker.id,
+          parentSubDealerId: newWorker.parentSubDealerId,
+          parentDealerId: newWorker.parentDealerId,
+        };
+      }
+      return p;
+    });
+
+    setLocalItem('holynex_network_people', updated);
+    Storage.addAuditLog(
+      'TRANSFER_CUSTOMER',
+      'HIERARCHY',
+      `Customer ${customer.name} (${customer.id}) transferred from Worker ${prevWorker} to Worker ${newWorker.name} (${newWorker.id}) by ${performedBy}.`
+    );
+
+    return { success: true };
+  },
+
+  // Scoped Customer View with Financial Privacy (Strict Masking for Dealers and Sub-Dealers)
+  getScopedCustomersSafeView: (user: { id: string; role: string }): NetworkCustomerSafeView[] => {
+    const allPeople = Storage.getNetworkPeople();
+    let customers: NetworkPerson[] = [];
+
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      customers = allPeople.filter((p) => p.role === 'customer');
+    } else if (user.role === 'dealer') {
+      customers = allPeople.filter((p) => p.role === 'customer' && p.parentDealerId === user.id);
+    } else if (user.role === 'sub_dealer') {
+      customers = allPeople.filter((p) => p.role === 'customer' && p.parentSubDealerId === user.id);
+    } else if (user.role === 'worker') {
+      customers = allPeople.filter((p) => p.role === 'customer' && p.parentWorkerId === user.id);
+    }
+
+    return customers.map((c) => {
+      const worker = allPeople.find((p) => p.id === c.parentWorkerId);
+      const subDealer = allPeople.find((p) => p.id === c.parentSubDealerId);
+      const dealer = allPeople.find((p) => p.id === c.parentDealerId);
+
+      return {
+        id: c.id,
+        name: c.name,
+        mobile: c.mobile,
+        area: c.area,
+        address: c.address,
+        photoUrl: c.photoUrl,
+        status: c.status,
+        joinedDate: c.joinedDate,
+        assignedWorkerId: c.parentWorkerId || 'WRK-000301',
+        assignedWorkerName: worker?.name || 'দায়িত্বপ্রাপ্ত কর্মী',
+        assignedSubDealerId: c.parentSubDealerId,
+        assignedSubDealerName: subDealer?.name,
+        assignedDealerId: c.parentDealerId || 'DLR-000101',
+        assignedDealerName: dealer?.name || 'মূল ডিলার',
+        // Notice: customer payments, purchase balances, and worker commission amounts are strictly excluded
+      };
+    });
+  },
+
+  // Transactions & Commission Engine
+  getHierarchyTransactions: (): HierarchyTransaction[] => {
+    return getLocalItem<HierarchyTransaction[]>('holynex_hierarchy_transactions', initialHierarchyTransactions);
+  },
+
+  getCommissionLedger: (): CommissionLedgerEntry[] => {
+    return getLocalItem<CommissionLedgerEntry[]>('holynex_commission_ledgers', initialCommissionLedgers);
+  },
+
+  processHierarchyTransaction: (tx: {
+    customerId: string;
+    productName?: string;
+    productType?: string;
+    quantity?: number;
+    totalAmount: number;
+  }): { transaction: HierarchyTransaction; ledgers: CommissionLedgerEntry[] } => {
+    const allPeople = Storage.getNetworkPeople();
+    const customer = allPeople.find((p) => p.id === tx.customerId);
+    const worker = allPeople.find((p) => p.id === customer?.parentWorkerId);
+    const subDealer = allPeople.find((p) => p.id === customer?.parentSubDealerId);
+    const dealer = allPeople.find((p) => p.id === customer?.parentDealerId);
+
+    const txId = `TXN-${Math.floor(10000 + Math.random() * 90000)}`;
+    const newTx: HierarchyTransaction = {
+      id: txId,
+      customerId: tx.customerId,
+      customerName: customer?.name || 'গ্রাহক',
+      customerMobile: customer?.mobile || '',
+      workerId: worker?.id || 'WRK-DIRECT',
+      workerName: worker?.name || 'ফিল্ড কর্মী',
+      subDealerId: subDealer?.id,
+      subDealerName: subDealer?.name,
+      dealerId: dealer?.id || 'DLR-000101',
+      dealerName: dealer?.name || 'মূল ডিলার',
+      productName: tx.productName || 'পণ্য সরবরাহ / কিস্তি',
+      productType: tx.productType || 'general',
+      quantity: tx.quantity || 1,
+      totalAmount: tx.totalAmount,
+      status: 'completed',
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Calculate commissions using active rules
+    const rules = Storage.getCommissionRules().filter((r) => r.active);
+    const ledgers: CommissionLedgerEntry[] = [];
+
+    // 1. Worker Commission
+    if (worker) {
+      const workerRule = rules.find((r) => r.role === 'worker');
+      const amount = workerRule
+        ? workerRule.rewardType === 'flat'
+          ? workerRule.amount
+          : (tx.totalAmount * workerRule.amount) / 100
+        : 50;
+      ledgers.push({
+        id: `LEDGER-${Math.floor(100000 + Math.random() * 900000)}`,
+        transactionId: txId,
+        recipientId: worker.id,
+        recipientName: worker.name,
+        recipientRole: 'worker',
+        commissionType: workerRule?.rewardType || 'flat',
+        commissionRate: workerRule?.amount || 50,
+        commissionAmount: amount,
+        calculationBase: tx.totalAmount,
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // 2. Sub-Dealer Commission
+    if (subDealer) {
+      const subRule = rules.find((r) => r.role === 'sub_dealer');
+      const amount = subRule
+        ? subRule.rewardType === 'flat'
+          ? subRule.amount
+          : (tx.totalAmount * subRule.amount) / 100
+        : 50;
+      ledgers.push({
+        id: `LEDGER-${Math.floor(100000 + Math.random() * 900000)}`,
+        transactionId: txId,
+        recipientId: subDealer.id,
+        recipientName: subDealer.name,
+        recipientRole: 'sub_dealer',
+        commissionType: subRule?.rewardType || 'flat',
+        commissionRate: subRule?.amount || 50,
+        commissionAmount: amount,
+        calculationBase: tx.totalAmount,
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // 3. Main Dealer Commission
+    if (dealer) {
+      const dealerRule = rules.find((r) => r.role === 'dealer');
+      const amount = dealerRule
+        ? dealerRule.rewardType === 'flat'
+          ? dealerRule.amount
+          : (tx.totalAmount * dealerRule.amount) / 100
+        : 100;
+      ledgers.push({
+        id: `LEDGER-${Math.floor(100000 + Math.random() * 900000)}`,
+        transactionId: txId,
+        recipientId: dealer.id,
+        recipientName: dealer.name,
+        recipientRole: 'dealer',
+        commissionType: dealerRule?.rewardType || 'flat',
+        commissionRate: dealerRule?.amount || 100,
+        commissionAmount: amount,
+        calculationBase: tx.totalAmount,
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Save transaction and ledgers
+    const txList = Storage.getHierarchyTransactions();
+    setLocalItem('holynex_hierarchy_transactions', [newTx, ...txList]);
+
+    const ledgerList = Storage.getCommissionLedger();
+    setLocalItem('holynex_commission_ledgers', [...ledgers, ...ledgerList]);
+
+    // Update recipient commission balances
+    const updatedPeople = allPeople.map((p) => {
+      const ledger = ledgers.find((l) => l.recipientId === p.id);
+      if (ledger) {
+        return {
+          ...p,
+          commissionBalance: (p.commissionBalance || 0) + ledger.commissionAmount,
+          totalCommissionEarned: (p.totalCommissionEarned || 0) + ledger.commissionAmount,
+        };
+      }
+      return p;
+    });
+    setLocalItem('holynex_network_people', updatedPeople);
+
+    Storage.addAuditLog(
+      'TRANSACTION_PROCESSED',
+      'FINANCE',
+      `Transaction ${txId} (৳${tx.totalAmount}) processed. ${ledgers.length} commission entries generated.`
+    );
+
+    return { transaction: newTx, ledgers };
   },
 };
 

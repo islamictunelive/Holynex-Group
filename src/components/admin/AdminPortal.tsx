@@ -15,6 +15,7 @@ import { AdminOrdersSupplyTab } from './AdminOrdersSupplyTab';
 import { AdminCommissionTab } from './AdminCommissionTab';
 import { AdminMessagingTab } from './AdminMessagingTab';
 import { AdminAIAssistantTab } from './AdminAIAssistantTab';
+import { AdminAdsTab } from './AdminAdsTab';
 import {
   Lock,
   LogOut,
@@ -44,6 +45,7 @@ import {
   Network,
   Sparkles,
   Bot,
+  Megaphone,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -57,6 +59,7 @@ type TabType =
   | 'cards'
   | 'orders_supply'
   | 'commissions'
+  | 'advertisements'
   | 'messaging'
   | 'ai_chat'
   | 'applications'
@@ -547,6 +550,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
             >
               <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
               <span>{t('কমিশন ও উইথড্রয়াল', 'Commissions & Payouts')}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('advertisements')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'advertisements'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+              <span>{t('বিজ্ঞাপন ও ব্যানার (৭টি স্লট)', 'Ads & 7 Banners')}</span>
             </button>
 
             <button
@@ -1104,6 +1119,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ navigate, onDataChange
             TAB: COMMISSIONS LEDGER & WITHDRAWALS
         ==================================================== */}
         {activeTab === 'commissions' && <AdminCommissionTab />}
+
+        {/* ====================================================
+            TAB: 7 CORPORATE ADVERTISEMENT SLOTS & BANNERS
+        ==================================================== */}
+        {activeTab === 'advertisements' && <AdminAdsTab />}
 
         {/* ====================================================
             TAB: SMS & MESSAGING GATEWAY

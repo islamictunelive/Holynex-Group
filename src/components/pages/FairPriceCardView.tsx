@@ -636,13 +636,22 @@ export const FairPriceCardView: React.FC<FairPriceCardViewProps> = ({ navigate }
               'If your area does not yet have an assigned local representative, contact our central corporate support desk.'
             )}
           </p>
-          <div className="pt-2 flex justify-center items-center gap-4">
+          <div className="pt-2 flex flex-wrap justify-center items-center gap-4">
             <a
               href="tel:01307835260"
               className="px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-black font-bold text-xs flex items-center gap-2 shadow"
             >
               <PhoneCall className="w-4 h-4 text-amber-400" />
               <span>{t('সরাসরি কল: 01307835260', 'Direct Call: 01307835260')}</span>
+            </a>
+            <a
+              href="https://wa.me/8801307835260"
+              target="_blank"
+              rel="noreferrer"
+              className="px-6 py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow"
+            >
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              <span>WhatsApp: 01307835260</span>
             </a>
             <button
               onClick={() => navigate('/dealer-application')}
@@ -651,6 +660,15 @@ export const FairPriceCardView: React.FC<FairPriceCardViewProps> = ({ navigate }
               <Store className="w-4 h-4" />
               <span>{t('ডিলারশিপ সুযোগ', 'Dealership Program')}</span>
             </button>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-4 text-xs text-slate-500">
+            <a href="https://www.facebook.com/holynexgroup" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+              Facebook
+            </a>
+            <span>•</span>
+            <a href="https://www.youtube.com/@holynexgroup1" target="_blank" rel="noreferrer" className="text-red-600 hover:underline">
+              YouTube
+            </a>
           </div>
         </div>
       </section>

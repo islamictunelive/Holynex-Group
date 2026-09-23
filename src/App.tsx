@@ -142,7 +142,7 @@ function MainApp() {
       <Header currentPath={currentPath} navigate={navigate} />
 
       {/* Main Content View Container */}
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full pb-16 md:pb-0">
         {currentPath === '/' && (
           <HomeClient
             slides={slides.map((s) => ({

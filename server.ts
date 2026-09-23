@@ -31,6 +31,10 @@ import {
   initialCommissions,
   initialWithdrawals,
   initialCustomerPayments,
+  initialAdSlots,
+  initialAdvertisements,
+  initialHierarchyTransactions,
+  initialCommissionLedgers,
 } from './src/lib/data.js';
 
 import {
@@ -38,7 +42,7 @@ import {
   initialAIKnowledge,
   initialAIChatAnalytics,
 } from './src/lib/aiData.js';
-import type { WithdrawalRequest } from './src/types.js';
+import type { FairPriceCardRecord, WithdrawalRequest, AdvertisementItem, AdSlotDefinition, HierarchyTransaction, CommissionLedgerEntry } from './src/types.js';
 
 let slidesDb = [...initialSlides];
 let newsDb = [...initialNews];
@@ -47,7 +51,7 @@ let benefitsDb = [...initialBenefits];
 let teamDb = [...initialTeam];
 let settingsDb = { ...initialSiteSettings };
 let adminUsersDb = [...initialAdminUsers];
-let fairPriceCardsDb = [...initialFairPriceCards];
+let fairPriceCardsDb: FairPriceCardRecord[] = [...initialFairPriceCards];
 let productSchedulesDb = [...initialProductSchedules];
 let networkPeopleDb = [...initialNetworkPeople];
 let ordersDb = [...initialOrders];
@@ -55,6 +59,10 @@ let deliveriesDb = [...initialDeliveries];
 let commissionsDb = [...initialCommissions];
 let withdrawalsDb = [...initialWithdrawals];
 let customerPaymentsDb = [...initialCustomerPayments];
+let adSlotsDb: AdSlotDefinition[] = [...initialAdSlots];
+let advertisementsDb: AdvertisementItem[] = [...initialAdvertisements];
+let hierarchyTransactionsDb: HierarchyTransaction[] = [...initialHierarchyTransactions];
+let commissionLedgerDb: CommissionLedgerEntry[] = [...initialCommissionLedgers];
 
 // Portal user session store and rate-limiting
 interface PortalSessionData {
@@ -554,30 +562,43 @@ ${scheduleDetails}
 
         const systemInstruction = `You are the ${aiSettingsDb.assistantNameBn} (${aiSettingsDb.assistantNameEn}), the official certified Corporate AI Live Chat Representative for Holynex Group (হোলিনেক্স গ্রুপ) in Bangladesh.
 
-CORPORATE PROFILE & DIRECTORY:
-- Company: Holynex Group (হোলিনেক্স গ্রুপ)
-- Founder Visionary: Late Abdul Khalek Molla (মরহুম আব্দুল খালেক মোল্লা)
-- Managing Director & CEO: Engr. Md. Kamrul Hasan (ইঞ্জিনিয়ার মোঃ কামরুল হাসান)
+OFFICIAL CORPORATE CONTACT DIRECTORY (CRITICAL - NEVER INVENT ANY OTHER LINKS OR NUMBERS):
+- Official Website: https://holynex-group-bay.vercel.app/
+- Official Dealer Application: https://holynex-group-bay.vercel.app/#/dealer-application
+- Official YouTube Channel: https://www.youtube.com/@holynexgroup1
+- Official Facebook Page: https://www.facebook.com/holynexgroup
+- Official WhatsApp Number: 01307835260 (Direct Chat Link: https://wa.me/8801307835260)
+- Corporate Helpline: 01307835260
 - Head Office: ৭১২, কমিশনার রোড, জুরাইন, যাত্রাবাড়ী, শ্যামপুর, ঢাকা (712, Commissioner Road, Jurain, Jatrabari, Shyampur, Dhaka)
-- Official Helpline: ${aiSettingsDb.supportPhone || '01307835260'}
-- WhatsApp Support: ${aiSettingsDb.supportWhatsapp || '01307835260'}
 - Support Email: ${aiSettingsDb.supportEmail || 'contact@holynexgroup.com'}
 - Working Hours: ${aiSettingsDb.supportHoursBn}
-- Core Operations:
-  1. Fair Price Card System (ফেয়ার প্রাইস কার্ড): Regulated membership removing middleman markups. Wholesale/subsidized prices for Miniket Rice, Edible Soybean Oil, Lentils. Cardholders get scheduled monthly delivery at authorized dealer points.
-  2. Installment Sales Facility (কিস্তি সুবিধা): 20% - 30% down payment, 6 to 24 equal monthly installments for 4K Smart TVs, Inverter Refrigerators, ACs, 125cc City Motorcycles, 5G Smartphones, and Teak Furniture. Zero hidden interest, 24-48 hours verification.
-  3. Authorized Dealership (অনুমোদিত ডিলারশিপ): Open online application through the website without password login. Requires applicant details, passport photo, trade territory. Generates unique tracking ID (HNX-2026-XXXXXX).
+
+EXACT PRODUCT NAMING RULES (MANDATORY IN BANGLA):
+- Always use "চাউল" (NEVER write "চাল").
+- Always use "তৈল" (NEVER write "তেল").
+- Always use "পোলাও চাউল" (NEVER write "পোলাও চাল").
+- Official food staples: চাউল, তৈল, পোলাও চাউল, ডাল (মসুর ডাল), আটা, লবণ, চিনি, ডিটারজেন্ট, ডিশওয়াশ, সাবান।
+- Major items: ইনভার্টার রেফ্রিজারেটর, ৪কে আল্ট্রা এইচডি স্মার্ট এলইডি টিভি, ইনভার্টার এসি, ১২৫ সিসি সিটি মোটরসাইকেল, ওয়াশিং মেশিন, মাইক্রোওয়েভ ওভেন, স্মার্টফোন, আধুনিক সেগুন কাঠের ফার্নিচার।
+
+CORE OPERATIONS & POLICIES:
+1. Fair Price Card System (ফেয়ার প্রাইস কার্ড): Regulated membership removing middleman markups. Subsidized wholesale rates for চাউল, তৈল, ডাল, আটা, চিনি etc. Cardholders get scheduled monthly allocations at authorized dealer points.
+2. Customer Benefits: 20-30% down payment, 6 to 24 equal monthly installments for home appliances and motorcycles. Zero hidden interest or surprise handling fees. 24-48 hours verification.
+3. Authorized Dealership: Open online application via ${'https://holynex-group-bay.vercel.app/#/dealer-application'}. No password login required. Applicants submit personal details, passport photo, trade location. Immediately generates a tracking ID (HNX-2026-XXXXXX).
 
 ${verifiedLookupContext}
 
 ${kbContext}
 
 ANTI-HALLUCINATION GUARDRAILS (CRITICAL):
-1. NEVER invent product prices, interest rates, delivery guarantees, or loan approvals.
-2. If the user asks about their personal card or dealer application status but has NOT provided an ID or mobile number, politely guide them to provide their Card Number (e.g. FPC-2026-XXXX) or Application ID (HNX-2026-XXXXXX) along with their mobile number.
-3. If the user expresses frustration, requests human intervention, or asks questions outside Holynex corporate services, politely provide the direct customer care phone number (${aiSettingsDb.supportPhone}) and WhatsApp (+88${aiSettingsDb.supportWhatsapp}).
-4. Always respond respectfully in ${activeLang === 'bn' ? 'Bangla (বাংলা)' : 'English'} unless the user explicitly switches language.
-5. Use clean markdown formatting, clear bullet points, and concise, professional phrasing. Tone: ${aiSettingsDb.tone}.`;
+1. NEVER invent product prices, eligibility rules, benefits, interest rates, or policies not present in the data.
+2. If the user asks for information not present in the knowledge base, do NOT guess. State the official message:
+   "এই তথ্যটি বর্তমানে আমাদের সিস্টেমে পাওয়া যাচ্ছে না। বিস্তারিত জানতে Holynex Group-এর WhatsApp নম্বরে যোগাযোগ করুন: 01307835260 (https://wa.me/8801307835260) অথবা হেল্পলাইনে কল করুন: 01307835260"
+   (or English equivalent if user is speaking in English).
+3. If the user asks about their personal card or dealer application status but has NOT provided an ID or phone, guide them to provide their Card Number (FPC-2026-XXXX) or Application ID (HNX-2026-XXXXXX) along with their mobile number.
+4. If the user requests human assistance, escalation, or official contact, provide the official contacts:
+   WhatsApp: 01307835260 (https://wa.me/8801307835260) | Helpline: 01307835260 | Facebook: https://www.facebook.com/holynexgroup | YouTube: https://www.youtube.com/@holynexgroup1.
+5. Language Context: Answer in Bangla (বাংলা) when the user asks in Bangla. Answer in English when the user asks in English.
+6. Formatting: Use clean markdown formatting, clear bullet points, and concise phrasing. Tone: ${aiSettingsDb.tone}.`;
 
         // Format history for context
         const formattedHistory = Array.isArray(history)
@@ -593,11 +614,11 @@ ANTI-HALLUCINATION GUARDRAILS (CRITICAL):
           : trimmedMsg;
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
+          model: 'gemini-2.5-flash',
           contents: promptWithHistory,
           config: {
             systemInstruction,
-            temperature: 0.4,
+            temperature: 0.3,
           },
         });
 
@@ -615,8 +636,8 @@ ANTI-HALLUCINATION GUARDRAILS (CRITICAL):
       if (hasLookup && verifiedLookupContext) {
         replySource = 'lookup';
         finalReply = activeLang === 'bn'
-          ? `আপনার সংরক্ষিত তথ্য যাচাই করা হয়েছে:\n\n${verifiedLookupContext.replace(/\[VERIFIED REAL.*?\]:\n/, '')}\n\nকোনো পরিবর্তনের প্রয়োজন হলে সরাসরি প্রধান কার্যালয় হটলাইনে কল করুন: 01307835260।`
-          : `We found your verified record:\n\n${verifiedLookupContext.replace(/\[VERIFIED REAL.*?\]:\n/, '')}\n\nFor any amendments, please contact our helpline: 01307835260.`;
+          ? `আপনার সংরক্ষিত তথ্য যাচাই করা হয়েছে:\n\n${verifiedLookupContext.replace(/\[VERIFIED REAL.*?\]:\n/, '')}\n\nকোনো সহায়তার প্রয়োজন হলে সরাসরি প্রধান কার্যালয় হটলাইনে কল করুন: 01307835260 অথবা WhatsApp: https://wa.me/8801307835260।`
+          : `We found your verified record:\n\n${verifiedLookupContext.replace(/\[VERIFIED REAL.*?\]:\n/, '')}\n\nFor assistance, please contact our hotline: 01307835260 or WhatsApp: https://wa.me/8801307835260.`;
       } else if (relevantKB.length > 0) {
         replySource = 'kb';
         const best = relevantKB[0];
@@ -624,44 +645,59 @@ ANTI-HALLUCINATION GUARDRAILS (CRITICAL):
       } else if (isEscalationIntent) {
         replySource = 'fallback';
         finalReply = activeLang === 'bn'
-          ? `আপনি আমাদের কাস্টমার কেয়ার প্রতিনিধির সাথে সরাসরি কথা বলতে পারেন:\n• হটলাইন: 01307835260 (সকাল ৯:০০ - রাত ৯:০০)\n• হোয়াটসঅ্যাপ: +8801307835260\n• ঠিকানা: ৭১২, কমিশনার রোড, জুরাইন, ঢাকা।`
-          : `You can speak directly with our Customer Support Team:\n• Hotline: 01307835260 (9:00 AM - 9:00 PM)\n• WhatsApp: +8801307835260\n• Head Office: 712, Commissioner Road, Jurain, Dhaka.`;
+          ? `আপনি আমাদের কাস্টমার কেয়ার প্রতিনিধির সাথে সরাসরি কথা বলতে পারেন:\n• হটলাইন: 01307835260 (সকাল ৯:০০ - রাত ৯:০০)\n• হোয়াটসঅ্যাপ (WhatsApp): 01307835260 (https://wa.me/8801307835260)\n• ফেসবুক: https://www.facebook.com/holynexgroup\n• ইউটিউব: https://www.youtube.com/@holynexgroup1\n• প্রধান কার্যালয়: ৭১২, কমিশনার রোড, জুরাইন, যাত্রাবাড়ী, শ্যামপুর, ঢাকা।`
+          : `You can speak directly with our Customer Support Team:\n• Hotline: 01307835260 (9:00 AM - 9:00 PM)\n• WhatsApp: 01307835260 (https://wa.me/8801307835260)\n• Facebook: https://www.facebook.com/holynexgroup\n• YouTube: https://www.youtube.com/@holynexgroup1\n• Head Office: 712, Commissioner Road, Jurain, Jatrabari, Shyampur, Dhaka.`;
       } else if (lowerMsg.includes('card') || lowerMsg.includes('কার্ড') || lowerMsg.includes('ফেয়ার প্রাইস') || lowerMsg.includes('fair price')) {
         replySource = 'kb';
         finalReply = activeLang === 'bn'
-          ? 'হোলিনেক্স গ্রুপের "ফেয়ার প্রাইস কার্ড" এর মাধ্যমে আপনি বাজার মূল্যের চেয়ে সাশ্রয়ী পাইকারি ও ভর্তুকি মূল্যে মিনিকেট চাল, সয়াবিন তেল ও মসুর ডাল সংগ্রহ করতে পারেন। এছাড়াও কার্ডধারীদের জন্য ফ্রিজ, টিভি, এসি ও মোটরসাইকেলে স্বল্প ডাউন পেমেন্টে সহজ কিস্তি সুবিধা রয়েছে। যেকোনো ডিলার পয়েন্টে ৫০০ টাকা ফি জমা দিয়ে কার্ড সংগ্রহ করা যায়।'
-          : 'Holynex Group Fair Price Card provides regulated wholesale rates for daily essentials (Miniket rice, edible oils, lentils) and prioritized installment facilities for electronics and motorcycles. Visit your local dealer point with 500 BDT to register.';
+          ? 'হোলিনেক্স গ্রুপের "নায্যমূল্য কার্ড" এর মাধ্যমে আপনি বাজার মূল্যের চেয়ে সাশ্রয়ী পাইকারি ও ভর্তুকি মূল্যে চাউল, তৈল ও মসুর ডাল সংগ্রহ করতে পারেন। এছাড়াও কার্ডধারীদের জন্য ফ্রিজ, টিভি, এসি ও মোটরসাইকেলে স্বল্প ডাউন পেমেন্টে সহজ কিস্তি সুবিধা রয়েছে। যেকোনো অনুমোদিত ডিলার পয়েন্ট থেকে কার্ড সংগ্রহ করা যায়।'
+          : 'Holynex Group Fair Price Card provides regulated wholesale rates for daily essentials (চাউল / Rice, তৈল / Oil, Dal) and prioritized installment facilities for electronics and motorcycles. Visit your local dealer point to apply.';
       } else if (lowerMsg.includes('dealer') || lowerMsg.includes('ডিলার') || lowerMsg.includes('আবেদন') || lowerMsg.includes('apply')) {
         replySource = 'kb';
         finalReply = activeLang === 'bn'
-          ? 'হোলিনেক্স গ্রুপের অনুমোদিত ডিলারশিপের জন্য আমাদের ওয়েবসাইটের "ডিলার আবেদন" পেজ থেকে সরাসরি অনলাইনে আবেদন করতে পারেন। আবেদন জমা দেওয়ার সাথে সাথে একটি অনন্য ট্র্যাকিং আইডি (যেমন HNX-2026-000101) পাবেন যা দিয়ে স্ট্যাটাস চেক করা যায়।'
-          : 'To become an authorized Holynex dealer, apply online through the "Dealer Application" page. You will immediately receive a unique tracking ID (e.g. HNX-2026-000101) to monitor review progress.';
+          ? 'হোলিনেক্স গ্রুপের অনুমোদিত ডিলারশিপের জন্য সরাসরি আমাদের অনলাইন পোর্টাল থেকে আবেদন করতে পারেন: https://holynex-group-bay.vercel.app/#/dealer-application। আবেদন জমা দেওয়ার সাথে সাথে একটি ট্র্যাকিং আইডি (যেমন HNX-2026-000101) পাবেন যা দিয়ে স্ট্যাটাস চেক করা যায়। কোনো লগইন পাসওয়ার্ডের প্রয়োজন নেই।'
+          : 'To become an authorized Holynex dealer, apply online at: https://holynex-group-bay.vercel.app/#/dealer-application. You will immediately receive a tracking ID (e.g. HNX-2026-000101) without requiring any login password.';
       } else if (lowerMsg.includes('কিস্তি') || lowerMsg.includes('installment') || lowerMsg.includes('ডাউন পেমেন্ট')) {
         replySource = 'kb';
         finalReply = activeLang === 'bn'
-          ? 'আমাদের কিস্তি পদ্ধতিতে মাত্র ২০% থেকে ৩০% ডাউন পেমেন্ট প্রদান করে ৬ থেকে ২৪ মাসের সহজ কিস্তিতে পছন্দের পণ্য নেওয়া যায়। কোনো গোপন সুদ নেই এবং ২৪-৪৮ ঘণ্টার মধ্যে অনুমোদন দেওয়া হয়।'
+          ? 'আমাদের কিস্তি পদ্ধতিতে মাত্র ২০% থেকে ৩০% ডাউন পেমেন্ট প্রদান করে ৬ থেকে ২৪ মাসের সহজ কিস্তিতে পছন্দের পণ্য নেওয়া যায়। কোনো গোপন সুদ নেই এবং মাত্র ২৪-৪৮ ঘণ্টার মধ্যে আবেদন যাচাই করা হয়।'
           : 'Our installment program requires 20% to 30% initial down payment with 6 to 24 equal monthly installments. Zero hidden fees and fast 24-48h verification.';
+      } else if (lowerMsg.includes('youtube') || lowerMsg.includes('facebook') || lowerMsg.includes('ইউটিউব') || lowerMsg.includes('ফেসবুক') || lowerMsg.includes('whatsapp') || lowerMsg.includes('হোয়াটসঅ্যাপ') || lowerMsg.includes('যোগাযোগ')) {
+        replySource = 'fallback';
+        finalReply = activeLang === 'bn'
+          ? `হোলিনেক্স গ্রুপের অফিসিয়াল যোগাযোগ মাধ্যমসমূহ:\n• YouTube: https://www.youtube.com/@holynexgroup1\n• Facebook: https://www.facebook.com/holynexgroup\n• WhatsApp: 01307835260 (https://wa.me/8801307835260)\n• হেল্পলাইন: 01307835260\n• অফিসিয়াল ওয়েবসাইট: https://holynex-group-bay.vercel.app/\n• ডিলার আবেদন: https://holynex-group-bay.vercel.app/#/dealer-application`
+          : `Official Holynex Group Contacts:\n• YouTube: https://www.youtube.com/@holynexgroup1\n• Facebook: https://www.facebook.com/holynexgroup\n• WhatsApp: 01307835260 (https://wa.me/8801307835260)\n• Helpline: 01307835260\n• Website: https://holynex-group-bay.vercel.app/\n• Dealer Application: https://holynex-group-bay.vercel.app/#/dealer-application`;
       } else {
         replySource = 'fallback';
         finalReply = activeLang === 'bn'
-          ? 'হোলিনেক্স গ্রুপে আপনাকে স্বাগতম। ফেয়ার প্রাইস কার্ড, কিস্তি সুবিধা, পণ্য তালিকা বা ডিলারশিপ সংক্রান্ত যেকোনো প্রশ্ন করতে পারেন। সরাসরি সহায়তার জন্য কল করুন: 01307835260।'
-          : 'Welcome to Holynex Group. How may I assist you regarding our Fair Price Cards, Installment Sales, Products, or Dealership? For direct support, call 01307835260.';
+          ? 'এই তথ্যটি বর্তমানে আমাদের সিস্টেমে পাওয়া যাচ্ছে না। বিস্তারিত জানতে Holynex Group-এর WhatsApp নম্বরে যোগাযোগ করুন: 01307835260 (https://wa.me/8801307835260) অথবা হেল্পলাইনে কল করুন: 01307835260।'
+          : 'This specific information is currently not found in our system. For details, please contact Holynex Group on WhatsApp: 01307835260 (https://wa.me/8801307835260) or call our hotline: 01307835260.';
       }
     }
 
     // Dynamic Suggested Follow-up Questions
     const suggestedQuestions = activeLang === 'bn'
       ? [
-          'ফেয়ার প্রাইস কার্ড কীভাবে পাব?',
-          'কিস্তির ডাউন পেমেন্ট কত?',
-          'ডিলার আবেদন করার নিয়ম',
-          'প্রধান কার্যালয়ের ঠিকানা ও ফোন',
+          'নায্যমূল্য কার্ড সম্পর্কে জানুন',
+          'Customer সুবিধা দেখুন',
+          'ডিলার হতে চাই',
+          'ডিলার আবেদন কীভাবে করব?',
+          'ডিলার আবেদন স্ট্যাটাস',
+          'কিস্তি সুবিধা সম্পর্কে জানুন',
+          'পণ্যের তালিকা দেখুন',
+          'যোগাযোগ করুন',
+          'WhatsApp-এ যোগাযোগ করুন',
         ]
       : [
-          'How to get a Fair Price Card?',
-          'What is the installment down payment?',
-          'How to become an authorized dealer?',
-          'Head Office address & hotline',
+          'Learn about Fair Price Card',
+          'View Customer Benefits',
+          'Become a Dealer',
+          'How to apply for dealership?',
+          'Check Dealer Application Status',
+          'Learn about Installment Benefits',
+          'View Product Catalog',
+          'Contact Us',
+          'Contact via WhatsApp',
         ];
 
     // Log query in analytics
@@ -1032,11 +1068,34 @@ app.get('/api/portal/dealer/data', portalAuthMiddleware(['dealer']), (req: Reque
   const representatives = networkPeopleDb.filter((p) => p.role === 'representative' && p.parentDealerId === dealerId);
 
   // Only customers belonging to this dealer's network
-  const customers = networkPeopleDb.filter(
+  const rawCustomers = networkPeopleDb.filter(
     (p) => p.role === 'customer' && (p.parentDealerId === dealerId || (p.parentSubDealerId && subDealerIds.includes(p.parentSubDealerId)))
   );
-  const customerIds = customers.map((c) => c.id);
-  const customerMobiles = customers.map((c) => c.mobile);
+  const customerIds = rawCustomers.map((c) => c.id);
+  const customerMobiles = rawCustomers.map((c) => c.mobile);
+
+  // SANITIZED CUSTOMERS FOR DEALER (Strict Financial Privacy: No purchase totals, balances or private payments)
+  const customers = rawCustomers.map((c) => {
+    const assignedWorker = networkPeopleDb.find((w) => w.id === c.parentWorkerId);
+    const assignedSub = networkPeopleDb.find((s) => s.id === c.parentSubDealerId);
+    return {
+      id: c.id,
+      name: c.name,
+      mobile: c.mobile,
+      area: c.area,
+      address: c.address,
+      status: c.status,
+      joinedDate: c.joinedDate,
+      role: c.role,
+      photoUrl: c.photoUrl,
+      parentWorkerId: c.parentWorkerId,
+      workerName: assignedWorker ? assignedWorker.name : undefined,
+      parentSubDealerId: c.parentSubDealerId,
+      subDealerName: assignedSub ? assignedSub.name : undefined,
+      parentDealerId: c.parentDealerId,
+      // Private financial fields omitted per corporate privacy policy
+    };
+  });
 
   // Only Fair Price Cards belonging to customers in this dealer's network
   const cards = fairPriceCardsDb.filter((c) => customerIds.includes(c.customerId) || customerMobiles.includes(c.customerMobile));
@@ -1100,7 +1159,7 @@ app.get('/api/portal/dealer/data', portalAuthMiddleware(['dealer']), (req: Reque
   });
 });
 
-// 2. SUB-DEALER PORTAL DATA (Strictly Scoped to Sub-Dealer's Scope)
+// 2. SUB-DEALER PORTAL DATA (Strictly Scoped to Sub-Dealer's Scope & Financial Privacy)
 app.get('/api/portal/sub-dealer/data', portalAuthMiddleware(['sub_dealer']), (req: Request, res: Response) => {
   const subDealerId = (req as any).portalUser.id;
   const subDealer = networkPeopleDb.find((p) => p.id === subDealerId && p.role === 'sub_dealer');
@@ -1117,11 +1176,32 @@ app.get('/api/portal/sub-dealer/data', portalAuthMiddleware(['sub_dealer']), (re
   const workerIds = workers.map((w) => w.id);
 
   // Customers assigned to this sub-dealer
-  const customers = networkPeopleDb.filter(
+  const rawCustomers = networkPeopleDb.filter(
     (p) => p.role === 'customer' && (p.parentSubDealerId === subDealerId || (p.parentWorkerId && workerIds.includes(p.parentWorkerId)))
   );
-  const customerIds = customers.map((c) => c.id);
-  const customerMobiles = customers.map((c) => c.mobile);
+  const customerIds = rawCustomers.map((c) => c.id);
+  const customerMobiles = rawCustomers.map((c) => c.mobile);
+
+  // SANITIZED CUSTOMERS FOR SUB-DEALER (Strict Financial Privacy)
+  const customers = rawCustomers.map((c) => {
+    const assignedWorker = networkPeopleDb.find((w) => w.id === c.parentWorkerId);
+    return {
+      id: c.id,
+      name: c.name,
+      mobile: c.mobile,
+      area: c.area,
+      address: c.address,
+      status: c.status,
+      joinedDate: c.joinedDate,
+      role: c.role,
+      photoUrl: c.photoUrl,
+      parentWorkerId: c.parentWorkerId,
+      workerName: assignedWorker ? assignedWorker.name : undefined,
+      parentSubDealerId: c.parentSubDealerId,
+      parentDealerId: c.parentDealerId,
+      // Financial amounts excluded
+    };
+  });
 
   // Fair Price Cards for these assigned customers
   const cards = fairPriceCardsDb.filter((c) => customerIds.includes(c.customerId) || customerMobiles.includes(c.customerMobile));
@@ -1389,6 +1469,325 @@ app.post('/api/portal/customer/report-payment', portalAuthMiddleware(['customer'
     message: 'পেমেন্ট তথ্য যাচাইয়ের জন্য সফলভাবে জমা হয়েছে। ২৪ ঘণ্টার মধ্যে ভেরিফিকেশন সম্পন্ন হবে।',
     payment: newPayment,
   });
+});
+
+// ---------------------------------------------
+// HIERARCHY-BASED REGISTRATION & TRANSFER ROUTES (ZERO-ORPHAN ENFORCEMENT)
+// ---------------------------------------------
+
+// 1. Worker registers a Customer (Auto-bound to Worker's hierarchy)
+app.post('/api/portal/worker/register-customer', portalAuthMiddleware(['worker']), (req: Request, res: Response) => {
+  const workerSession = (req as any).portalUser as PortalSessionData;
+  const worker = networkPeopleDb.find((p) => p.id === workerSession.id && p.role === 'worker');
+
+  if (!worker) {
+    return res.status(404).json({ success: false, error: 'দায়িত্বপ্রাপ্ত কর্মী পাওয়া যায়নি।' });
+  }
+
+  const { name, mobile, address, area, nid, photoUrl } = req.body;
+
+  if (!name || !mobile) {
+    return res.status(400).json({ success: false, error: 'গ্রাহকের নাম এবং মোবাইল নম্বর আবশ্যক।' });
+  }
+
+  const cleanMobile = mobile.replace(/\D/g, '');
+  if (networkPeopleDb.some((p) => p.mobile.replace(/\D/g, '') === cleanMobile)) {
+    return res.status(400).json({ success: false, error: 'এই মোবাইল নম্বরটি ইতিমধ্যে নিবন্ধিত আছে।' });
+  }
+
+  const customerId = `CUS-${Math.floor(100000 + Math.random() * 900000)}`;
+  const newCustomer = {
+    id: customerId,
+    role: 'customer' as const,
+    name: name.trim(),
+    mobile: mobile.trim(),
+    password: 'customer@2026',
+    address: (address || worker.address || '').trim(),
+    area: (area || worker.area || '').trim(),
+    parentWorkerId: worker.id,
+    parentSubDealerId: worker.parentSubDealerId,
+    parentDealerId: worker.parentDealerId,
+    status: 'active' as const,
+    photoUrl: photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    nid: nid || '',
+    joinedDate: new Date().toISOString().split('T')[0],
+    commissionBalance: 0,
+    totalCommissionEarned: 0,
+  };
+
+  networkPeopleDb.push(newCustomer);
+
+  // Automatically issue Fair Price Card
+  const newCard: FairPriceCardRecord = {
+    id: `card-${Date.now()}`,
+    cardNumber: `FPC-${Math.floor(10000000 + Math.random() * 90000000)}`,
+    customerId: newCustomer.id,
+    customerName: newCustomer.name,
+    customerMobile: newCustomer.mobile,
+    customerNid: newCustomer.nid,
+    customerAddress: newCustomer.address,
+    customerArea: newCustomer.area,
+    status: 'active' as const,
+    representativeId: worker.id,
+    representativeName: worker.name,
+    assignedRepresentative: worker.name,
+    parentDealerId: worker.parentDealerId,
+    issueDate: new Date().toISOString().split('T')[0],
+    expiryDate: '2028-12-31',
+    cardFee: 0,
+    paidFee: 0,
+    remainingFee: 0,
+    monthlyQuotaKg: 25,
+    monthlyGroceryLimit: 5000,
+    groceryPurchasedThisMonth: 0,
+    applianceCreditLimit: 40000,
+    applianceCreditUsed: 0,
+    totalSavings: 0,
+  };
+  fairPriceCardsDb.unshift(newCard);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'HIERARCHY_REGISTER',
+    entity: 'CUSTOMER',
+    details: `Customer ${newCustomer.name} (${newCustomer.id}) registered by Worker ${worker.name} (${worker.id}). Hierarchy: Main Dealer [${worker.parentDealerId}] -> Sub-Dealer [${worker.parentSubDealerId || 'none'}] -> Worker [${worker.id}].`,
+    adminUser: worker.name,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: 'গ্রাহক সফলভাবে নিবন্ধিত হয়েছে এবং ফেয়ার প্রাইস কার্ড ইস্যু করা হয়েছে।',
+    customer: newCustomer,
+    card: newCard,
+  });
+});
+
+// 2. Dealer registers a Sub-Dealer (Strictly belongs to logged-in Dealer)
+app.post('/api/portal/dealer/register-sub-dealer', portalAuthMiddleware(['dealer']), (req: Request, res: Response) => {
+  const dealerSession = (req as any).portalUser as PortalSessionData;
+  const { name, mobile, email, address, area, nid, tradeLicense } = req.body;
+
+  if (!name || !mobile) {
+    return res.status(400).json({ success: false, error: 'সাব-ডিলারের নাম ও মোবাইল আবশ্যক।' });
+  }
+
+  const cleanMobile = mobile.replace(/\D/g, '');
+  if (networkPeopleDb.some((p) => p.mobile.replace(/\D/g, '') === cleanMobile)) {
+    return res.status(400).json({ success: false, error: 'এই মোবাইল নম্বরটি ইতিমধ্যে নিবন্ধিত।' });
+  }
+
+  const subDealerId = `SUB-${Math.floor(100000 + Math.random() * 900000)}`;
+  const newSubDealer = {
+    id: subDealerId,
+    role: 'sub_dealer' as const,
+    name: name.trim(),
+    mobile: mobile.trim(),
+    email: email ? email.trim() : undefined,
+    password: 'subdealer@2026',
+    address: address || '',
+    area: area || '',
+    parentDealerId: dealerSession.id, // Strictly auto-assigned!
+    status: 'active' as const,
+    nid: nid || '',
+    tradeLicense: tradeLicense || '',
+    joinedDate: new Date().toISOString().split('T')[0],
+    commissionBalance: 0,
+    totalCommissionEarned: 0,
+  };
+
+  networkPeopleDb.push(newSubDealer);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'HIERARCHY_REGISTER',
+    entity: 'SUB_DEALER',
+    details: `Sub-Dealer ${newSubDealer.name} (${newSubDealer.id}) registered under Main Dealer ${dealerSession.name} (${dealerSession.id}).`,
+    adminUser: dealerSession.name,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'সাব-ডিলার সফলভাবে তৈরি হয়েছে।', subDealer: newSubDealer });
+});
+
+// 3. Dealer registers a Worker (Either directly under dealer OR under dealer's sub-dealer)
+app.post('/api/portal/dealer/register-worker', portalAuthMiddleware(['dealer']), (req: Request, res: Response) => {
+  const dealerSession = (req as any).portalUser as PortalSessionData;
+  const { name, mobile, address, area, parentSubDealerId } = req.body;
+
+  if (!name || !mobile) {
+    return res.status(400).json({ success: false, error: 'কর্মীর নাম ও মোবাইল আবশ্যক।' });
+  }
+
+  // If subDealer is specified, verify it belongs to this dealer
+  if (parentSubDealerId) {
+    const subDealer = networkPeopleDb.find(
+      (p) => p.id === parentSubDealerId && p.role === 'sub_dealer' && p.parentDealerId === dealerSession.id
+    );
+    if (!subDealer) {
+      return res.status(400).json({ success: false, error: 'নির্বাচিত সাব-ডিলারটি আপনার অধীনস্থ নয়।' });
+    }
+  }
+
+  const cleanMobile = mobile.replace(/\D/g, '');
+  if (networkPeopleDb.some((p) => p.mobile.replace(/\D/g, '') === cleanMobile)) {
+    return res.status(400).json({ success: false, error: 'এই মোবাইল নম্বরটি ইতিমধ্যে নিবন্ধিত।' });
+  }
+
+  const workerId = `WRK-${Math.floor(100000 + Math.random() * 900000)}`;
+  const newWorker = {
+    id: workerId,
+    role: 'worker' as const,
+    name: name.trim(),
+    mobile: mobile.trim(),
+    password: 'worker@2026',
+    address: address || '',
+    area: area || '',
+    parentDealerId: dealerSession.id, // Strictly auto-assigned!
+    parentSubDealerId: parentSubDealerId || undefined,
+    status: 'active' as const,
+    joinedDate: new Date().toISOString().split('T')[0],
+    commissionBalance: 0,
+    totalCommissionEarned: 0,
+  };
+
+  networkPeopleDb.push(newWorker);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'HIERARCHY_REGISTER',
+    entity: 'WORKER',
+    details: `Worker ${newWorker.name} (${newWorker.id}) registered under Dealer ${dealerSession.name} (Sub-Dealer: ${parentSubDealerId || 'Direct'}).`,
+    adminUser: dealerSession.name,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'কর্মী সফলভাবে নিবন্ধিত হয়েছে।', worker: newWorker });
+});
+
+// 4. Sub-Dealer registers a Worker (Strictly auto-bound to this Sub-Dealer and its Main Dealer)
+app.post('/api/portal/sub-dealer/register-worker', portalAuthMiddleware(['sub_dealer']), (req: Request, res: Response) => {
+  const subDealerSession = (req as any).portalUser as PortalSessionData;
+  const subDealer = networkPeopleDb.find((p) => p.id === subDealerSession.id && p.role === 'sub_dealer');
+
+  if (!subDealer || !subDealer.parentDealerId) {
+    return res.status(400).json({ success: false, error: 'সাব-ডিলারের মূল ডিলার তথ্য পাওয়া যায়নি।' });
+  }
+
+  const { name, mobile, address, area } = req.body;
+  if (!name || !mobile) {
+    return res.status(400).json({ success: false, error: 'কর্মীর নাম ও মোবাইল আবশ্যক।' });
+  }
+
+  const cleanMobile = mobile.replace(/\D/g, '');
+  if (networkPeopleDb.some((p) => p.mobile.replace(/\D/g, '') === cleanMobile)) {
+    return res.status(400).json({ success: false, error: 'এই মোবাইল নম্বরটি ইতিমধ্যে নিবন্ধিত।' });
+  }
+
+  const workerId = `WRK-${Math.floor(100000 + Math.random() * 900000)}`;
+  const newWorker = {
+    id: workerId,
+    role: 'worker' as const,
+    name: name.trim(),
+    mobile: mobile.trim(),
+    password: 'worker@2026',
+    address: address || '',
+    area: area || '',
+    parentSubDealerId: subDealer.id, // Strictly auto-assigned!
+    parentDealerId: subDealer.parentDealerId, // Inherited from Sub-Dealer!
+    status: 'active' as const,
+    joinedDate: new Date().toISOString().split('T')[0],
+    commissionBalance: 0,
+    totalCommissionEarned: 0,
+  };
+
+  networkPeopleDb.push(newWorker);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'HIERARCHY_REGISTER',
+    entity: 'WORKER',
+    details: `Worker ${newWorker.name} (${newWorker.id}) registered by Sub-Dealer ${subDealer.name} (${subDealer.id}) under Main Dealer [${subDealer.parentDealerId}].`,
+    adminUser: subDealer.name,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'কর্মী সফলভাবে নিবন্ধিত হয়েছে।', worker: newWorker });
+});
+
+// 5. Hierarchy Structure & Dropdown Helper (Public/Portal/Admin)
+app.get('/api/hierarchy/network-tree', (req: Request, res: Response) => {
+  const dealers = networkPeopleDb
+    .filter((p) => p.role === 'dealer')
+    .map((d) => ({ id: d.id, name: d.name, area: d.area, mobile: d.mobile, status: d.status }));
+
+  const subDealers = networkPeopleDb
+    .filter((p) => p.role === 'sub_dealer')
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      area: s.area,
+      mobile: s.mobile,
+      parentDealerId: s.parentDealerId,
+      status: s.status,
+    }));
+
+  const workers = networkPeopleDb
+    .filter((p) => p.role === 'worker')
+    .map((w) => ({
+      id: w.id,
+      name: w.name,
+      area: w.area,
+      mobile: w.mobile,
+      parentDealerId: w.parentDealerId,
+      parentSubDealerId: w.parentSubDealerId,
+      status: w.status,
+    }));
+
+  res.json({ success: true, dealers, subDealers, workers });
+});
+
+// ---------------------------------------------
+// ADVERTISEMENT SYSTEM API ROUTES (7 Configurable Slots)
+// ---------------------------------------------
+
+// Public Ads: Get active ads by slot or all slots with impressions
+app.get('/api/ads', (req: Request, res: Response) => {
+  const { slotId } = req.query;
+  const today = new Date().toISOString().split('T')[0];
+
+  let activeAds = advertisementsDb.filter((a) => {
+    if (!a.active) return false;
+    if (a.startDate && a.startDate > today) return false;
+    if (a.endDate && a.endDate < today) return false;
+    if (slotId && a.slotId !== slotId) return false;
+    return true;
+  });
+
+  // Sort by priority descending (highest priority first)
+  activeAds.sort((a, b) => (b.priority || 5) - (a.priority || 5));
+
+  // Increment impression counter
+  activeAds.forEach((ad) => {
+    ad.impressions = (ad.impressions || 0) + 1;
+  });
+
+  res.json({
+    success: true,
+    slots: adSlotsDb,
+    advertisements: activeAds,
+  });
+});
+
+// Public Ad Click Tracking
+app.post('/api/ads/click/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const ad = advertisementsDb.find((a) => a.id === id);
+  if (ad) {
+    ad.clicks = (ad.clicks || 0) + 1;
+    return res.json({ success: true, clicks: ad.clicks, destinationUrl: ad.destinationUrl });
+  }
+  res.status(404).json({ success: false, error: 'বিজ্ঞাপন পাওয়া যায়নি।' });
 });
 
 // ---------------------------------------------
@@ -2032,6 +2431,497 @@ app.post('/api/admin/ai/test', authMiddleware, async (req: Request, res: Respons
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---------------------------------------------
+// ADMIN ADVERTISEMENT MANAGEMENT APIS
+// ---------------------------------------------
+
+// Get All Ads + Slot Analytics
+app.get('/api/admin/ads', authMiddleware, (_req: Request, res: Response) => {
+  const adsWithAnalytics = advertisementsDb.map((ad) => {
+    const impressions = ad.impressions || 0;
+    const clicks = ad.clicks || 0;
+    const ctr = impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0;
+    return { ...ad, ctr };
+  });
+
+  res.json({
+    success: true,
+    slots: adSlotsDb,
+    advertisements: adsWithAnalytics,
+  });
+});
+
+// Create Advertisement
+app.post('/api/admin/ads', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { companyName, title, slotId, type, imageUrl, destinationUrl, htmlCode, startDate, endDate, priority, showOnDesktop, showOnMobile, active } = req.body;
+
+  if (!companyName || !title || !slotId) {
+    return res.status(400).json({ success: false, error: 'কোম্পানির নাম, বিজ্ঞাপনের শিরোনাম এবং স্লট নির্বাচন আবশ্যক।' });
+  }
+
+  const newAd: AdvertisementItem = {
+    id: `AD-${Date.now().toString().slice(-6)}`,
+    companyName: companyName.trim(),
+    title: title.trim(),
+    slotId,
+    type: type || 'image_banner',
+    imageUrl: imageUrl || '',
+    destinationUrl: destinationUrl || '',
+    htmlCode: htmlCode || '',
+    startDate: startDate || new Date().toISOString().split('T')[0],
+    endDate: endDate || '2026-12-31',
+    priority: Number(priority) || 5,
+    showOnDesktop: showOnDesktop !== undefined ? Boolean(showOnDesktop) : true,
+    showOnMobile: showOnMobile !== undefined ? Boolean(showOnMobile) : true,
+    active: active !== undefined ? Boolean(active) : true,
+    impressions: 0,
+    clicks: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  advertisementsDb.unshift(newAd);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AD_CREATED',
+    entity: 'MARKETING',
+    details: `Advertisement "${newAd.title}" (${newAd.companyName}) created for slot ${newAd.slotId}.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'বিজ্ঞাপন সফলভাবে তৈরি হয়েছে।', advertisement: newAd });
+});
+
+// Update Advertisement
+app.put('/api/admin/ads/:id', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { id } = req.params;
+  const idx = advertisementsDb.findIndex((a) => a.id === id);
+
+  if (idx === -1) {
+    return res.status(404).json({ success: false, error: 'বিজ্ঞাপনটি পাওয়া যায়নি।' });
+  }
+
+  const updatedAd: AdvertisementItem = {
+    ...advertisementsDb[idx],
+    ...req.body,
+    id,
+    updatedAt: new Date().toISOString(),
+  };
+
+  advertisementsDb[idx] = updatedAd;
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AD_UPDATED',
+    entity: 'MARKETING',
+    details: `Advertisement "${updatedAd.title}" (${id}) updated.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'বিজ্ঞাপন সফলভাবে হালনাগাদ করা হয়েছে।', advertisement: updatedAd });
+});
+
+// Delete Advertisement
+app.delete('/api/admin/ads/:id', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { id } = req.params;
+  const target = advertisementsDb.find((a) => a.id === id);
+
+  if (!target) {
+    return res.status(404).json({ success: false, error: 'বিজ্ঞাপনটি পাওয়া যায়নি।' });
+  }
+
+  advertisementsDb = advertisementsDb.filter((a) => a.id !== id);
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AD_DELETED',
+    entity: 'MARKETING',
+    details: `Advertisement "${target.title}" (${id}) deleted.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'বিজ্ঞাপন সফলভাবে মুছে ফেলা হয়েছে।' });
+});
+
+// Toggle Advertisement Status
+app.post('/api/admin/ads/:id/toggle', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { id } = req.params;
+  const target = advertisementsDb.find((a) => a.id === id);
+
+  if (!target) {
+    return res.status(404).json({ success: false, error: 'বিজ্ঞাপনটি পাওয়া যায়নি।' });
+  }
+
+  target.active = !target.active;
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'AD_TOGGLE',
+    entity: 'MARKETING',
+    details: `Advertisement "${target.title}" set to ${target.active ? 'ACTIVE' : 'INACTIVE'}.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, active: target.active });
+});
+
+// ---------------------------------------------
+// ADMIN HIERARCHY REGISTRATION & TRANSFERS
+// ---------------------------------------------
+
+// Admin registers user into hierarchy (Strict verification, no orphans)
+app.post('/api/admin/hierarchy/register', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { role, name, mobile, email, address, area, nid, tradeLicense, parentDealerId, parentSubDealerId, parentWorkerId } = req.body;
+
+  if (!role || !name || !mobile) {
+    return res.status(400).json({ success: false, error: 'ভূমিকা, নাম এবং মোবাইল নম্বর আবশ্যক।' });
+  }
+
+  const cleanMobile = mobile.replace(/\D/g, '');
+  if (networkPeopleDb.some((p) => p.mobile.replace(/\D/g, '') === cleanMobile)) {
+    return res.status(400).json({ success: false, error: 'এই মোবাইল নম্বরটি ইতিমধ্যে অন্য ব্যবহারকারীর দ্বারা ব্যবহৃত হচ্ছে।' });
+  }
+
+  // Hierarchy validation rules:
+  let resolvedDealerId = parentDealerId;
+  let resolvedSubDealerId = parentSubDealerId;
+  let resolvedWorkerId = parentWorkerId;
+
+  if (role === 'sub_dealer') {
+    if (!parentDealerId) {
+      return res.status(400).json({ success: false, error: 'সাব-ডিলার তৈরির জন্য অবশ্যই মূল ডিলার নির্বাচন করতে হবে।' });
+    }
+    const dealer = networkPeopleDb.find((p) => p.id === parentDealerId && p.role === 'dealer');
+    if (!dealer) {
+      return res.status(400).json({ success: false, error: 'নির্বাচিত মূল ডিলারটি সিস্টেমে বিদ্যমান নেই।' });
+    }
+  } else if (role === 'worker') {
+    if (!parentDealerId && !parentSubDealerId) {
+      return res.status(400).json({ success: false, error: 'কর্মীর জন্য মূল ডিলার অথবা সাব-ডিলার নির্বাচন করতে হবে।' });
+    }
+    if (parentSubDealerId) {
+      const subDealer = networkPeopleDb.find((p) => p.id === parentSubDealerId && p.role === 'sub_dealer');
+      if (!subDealer) {
+        return res.status(400).json({ success: false, error: 'নির্বাচিত সাব-ডিলারটি সিস্টেমে বিদ্যমান নেই।' });
+      }
+      resolvedDealerId = subDealer.parentDealerId;
+    } else {
+      const dealer = networkPeopleDb.find((p) => p.id === parentDealerId && p.role === 'dealer');
+      if (!dealer) {
+        return res.status(400).json({ success: false, error: 'নির্বাচিত মূল ডিলারটি সিস্টেমে বিদ্যমান নেই।' });
+      }
+    }
+  } else if (role === 'customer') {
+    if (!parentWorkerId) {
+      return res.status(400).json({ success: false, error: 'গ্রাহক তৈরির জন্য অবশ্যই একজন কর্মী (Worker) নির্বাচন করতে হবে।' });
+    }
+    const worker = networkPeopleDb.find((p) => p.id === parentWorkerId && p.role === 'worker');
+    if (!worker) {
+      return res.status(400).json({ success: false, error: 'নির্বাচিত কর্মীটি সিস্টেমে বিদ্যমান নেই।' });
+    }
+    resolvedSubDealerId = worker.parentSubDealerId;
+    resolvedDealerId = worker.parentDealerId;
+  }
+
+  const prefix = role === 'dealer' ? 'DLR' : role === 'sub_dealer' ? 'SUB' : role === 'worker' ? 'WRK' : 'CUS';
+  const newId = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const newPerson = {
+    id: newId,
+    role,
+    name: name.trim(),
+    mobile: mobile.trim(),
+    email: email ? email.trim() : undefined,
+    password: `${role}@2026`,
+    address: (address || '').trim(),
+    area: (area || '').trim(),
+    nid: nid || '',
+    tradeLicense: tradeLicense || '',
+    parentDealerId: resolvedDealerId,
+    parentSubDealerId: resolvedSubDealerId,
+    parentWorkerId: resolvedWorkerId,
+    status: 'active' as const,
+    joinedDate: new Date().toISOString().split('T')[0],
+    commissionBalance: 0,
+    totalCommissionEarned: 0,
+  };
+
+  networkPeopleDb.push(newPerson);
+
+  // If customer, also issue Fair Price Card
+  if (role === 'customer') {
+    const worker = networkPeopleDb.find((p) => p.id === resolvedWorkerId);
+    const newCustomerCard: FairPriceCardRecord = {
+      id: `card-${Date.now()}`,
+      cardNumber: `FPC-${Math.floor(10000000 + Math.random() * 90000000)}`,
+      customerId: newPerson.id,
+      customerName: newPerson.name,
+      customerMobile: newPerson.mobile,
+      customerNid: newPerson.nid,
+      customerAddress: newPerson.address,
+      customerArea: newPerson.area,
+      status: 'active',
+      representativeId: worker?.id || 'WRK-DIRECT',
+      representativeName: worker?.name || 'দায়িত্বপ্রাপ্ত কর্মী',
+      assignedRepresentative: worker?.name || 'দায়িত্বপ্রাপ্ত কর্মী',
+      parentDealerId: resolvedDealerId,
+      issueDate: new Date().toISOString().split('T')[0],
+      expiryDate: '2028-12-31',
+      cardFee: 0,
+      paidFee: 0,
+      remainingFee: 0,
+      monthlyQuotaKg: 25,
+      monthlyGroceryLimit: 5000,
+      groceryPurchasedThisMonth: 0,
+      applianceCreditLimit: 40000,
+      applianceCreditUsed: 0,
+      totalSavings: 0,
+    };
+    fairPriceCardsDb.unshift(newCustomerCard);
+  }
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'ADMIN_HIERARCHY_REGISTER',
+    entity: role.toUpperCase(),
+    details: `${role.toUpperCase()} ${newPerson.name} (${newPerson.id}) registered by Admin. Hierarchy: Dealer [${resolvedDealerId || 'none'}] -> Sub-Dealer [${resolvedSubDealerId || 'none'}] -> Worker [${resolvedWorkerId || 'none'}].`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({ success: true, message: 'ব্যবহারকারী সফলভাবে তৈরি হয়েছে।', person: newPerson });
+});
+
+// Admin Transfers Worker (Updates worker and automatically updates all customers under this worker)
+app.post('/api/admin/hierarchy/transfer-worker', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { workerId, newParentType, newParentId } = req.body;
+
+  const worker = networkPeopleDb.find((p) => p.id === workerId && p.role === 'worker');
+  if (!worker) {
+    return res.status(404).json({ success: false, error: 'কর্মী পাওয়া যায়নি।' });
+  }
+
+  let newDealerId = '';
+  let newSubDealerId: string | undefined = undefined;
+
+  if (newParentType === 'dealer') {
+    const dealer = networkPeopleDb.find((p) => p.id === newParentId && p.role === 'dealer');
+    if (!dealer) return res.status(400).json({ success: false, error: 'মূল ডিলার পাওয়া যায়নি।' });
+    newDealerId = dealer.id;
+  } else {
+    const subDealer = networkPeopleDb.find((p) => p.id === newParentId && p.role === 'sub_dealer');
+    if (!subDealer || !subDealer.parentDealerId) return res.status(400).json({ success: false, error: 'সাব-ডিলার পাওয়া যায়নি।' });
+    newSubDealerId = subDealer.id;
+    newDealerId = subDealer.parentDealerId;
+  }
+
+  const prevPath = `Dealer [${worker.parentDealerId}] -> Sub [${worker.parentSubDealerId || 'none'}]`;
+  const newPath = `Dealer [${newDealerId}] -> Sub [${newSubDealerId || 'none'}]`;
+
+  // Update worker
+  worker.parentDealerId = newDealerId;
+  worker.parentSubDealerId = newSubDealerId;
+
+  // Update all customers under this worker
+  let affectedCustomers = 0;
+  networkPeopleDb.forEach((p) => {
+    if (p.role === 'customer' && p.parentWorkerId === workerId) {
+      p.parentDealerId = newDealerId;
+      p.parentSubDealerId = newSubDealerId;
+      affectedCustomers++;
+    }
+  });
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'TRANSFER_WORKER',
+    entity: 'HIERARCHY',
+    details: `Worker ${worker.name} (${worker.id}) transferred by ${currentAdmin} from ${prevPath} to ${newPath}. Affected customers updated: ${affectedCustomers}.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: `কর্মী এবং সংশ্লিষ্ট ${affectedCustomers} জন গ্রাহক সফলভাবে নতুন হায়ারার্কিতে স্থানান্তরিত হয়েছে।`,
+    worker,
+  });
+});
+
+// Admin Transfers Customer (Updates worker, sub-dealer, and dealer)
+app.post('/api/admin/hierarchy/transfer-customer', authMiddleware, (req: Request, res: Response) => {
+  const currentAdmin = (req as any).adminUser?.name || 'Admin';
+  const { customerId, newWorkerId } = req.body;
+
+  const customer = networkPeopleDb.find((p) => p.id === customerId && p.role === 'customer');
+  if (!customer) {
+    return res.status(404).json({ success: false, error: 'গ্রাহক পাওয়া যায়নি।' });
+  }
+
+  const newWorker = networkPeopleDb.find((p) => p.id === newWorkerId && p.role === 'worker');
+  if (!newWorker) {
+    return res.status(400).json({ success: false, error: 'নতুন কর্মী পাওয়া যায়নি।' });
+  }
+
+  const prevWorker = customer.parentWorkerId;
+  customer.parentWorkerId = newWorker.id;
+  customer.parentSubDealerId = newWorker.parentSubDealerId;
+  customer.parentDealerId = newWorker.parentDealerId;
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'TRANSFER_CUSTOMER',
+    entity: 'HIERARCHY',
+    details: `Customer ${customer.name} (${customer.id}) transferred from Worker [${prevWorker}] to Worker ${newWorker.name} (${newWorker.id}) by ${currentAdmin}.`,
+    adminUser: currentAdmin,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: `গ্রাহক সফলভাবে কর্মী ${newWorker.name}-এর অধীনে স্থানান্তরিত হয়েছে।`,
+    customer,
+  });
+});
+
+// ---------------------------------------------
+// COMMISSION LEDGER & HIERARCHY TRANSACTIONS
+// ---------------------------------------------
+
+app.get('/api/admin/commissions/ledger', authMiddleware, (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    ledgers: commissionLedgerDb,
+    transactions: hierarchyTransactionsDb,
+  });
+});
+
+// Process Transaction & Calculate Commissions
+app.post('/api/admin/transactions/process', authMiddleware, (req: Request, res: Response) => {
+  const { customerId, productName, quantity, totalAmount } = req.body;
+
+  const customer = networkPeopleDb.find((p) => p.id === customerId && p.role === 'customer');
+  if (!customer) {
+    return res.status(404).json({ success: false, error: 'গ্রাহক পাওয়া যায়নি।' });
+  }
+
+  const worker = networkPeopleDb.find((p) => p.id === customer.parentWorkerId);
+  const subDealer = networkPeopleDb.find((p) => p.id === customer.parentSubDealerId);
+  const dealer = networkPeopleDb.find((p) => p.id === customer.parentDealerId);
+
+  const txId = `TXN-${Math.floor(10000 + Math.random() * 90000)}`;
+  const amount = Number(totalAmount) || 1000;
+
+  const newTx: HierarchyTransaction = {
+    id: txId,
+    customerId: customer.id,
+    customerName: customer.name,
+    customerMobile: customer.mobile,
+    workerId: worker?.id || 'WRK-DIRECT',
+    workerName: worker?.name || 'ফিল্ড কর্মী',
+    subDealerId: subDealer?.id,
+    subDealerName: subDealer?.name,
+    dealerId: dealer?.id || 'DLR-000101',
+    dealerName: dealer?.name || 'মূল ডিলার',
+    productName: productName || 'পণ্য ক্রয়',
+    quantity: Number(quantity) || 1,
+    totalAmount: amount,
+    status: 'completed',
+    date: new Date().toISOString(),
+  };
+
+  const newLedgers: CommissionLedgerEntry[] = [];
+
+  // 1. Worker Commission (Flat 50 or 5%)
+  if (worker) {
+    const comAmount = 50;
+    newLedgers.push({
+      id: `LEDGER-${Math.floor(100000 + Math.random() * 900000)}`,
+      transactionId: txId,
+      recipientId: worker.id,
+      recipientName: worker.name,
+      recipientRole: 'worker',
+      commissionType: 'flat',
+      commissionRate: 50,
+      commissionAmount: comAmount,
+      calculationBase: amount,
+      status: 'approved',
+      createdAt: new Date().toISOString(),
+    });
+    worker.commissionBalance = (worker.commissionBalance || 0) + comAmount;
+    worker.totalCommissionEarned = (worker.totalCommissionEarned || 0) + comAmount;
+  }
+
+  // 2. Sub-Dealer Commission (Flat 50)
+  if (subDealer) {
+    const comAmount = 50;
+    newLedgers.push({
+      id: `LEDGER-${Math.floor(100000 + Math.random() * 900000)}`,
+      transactionId: txId,
+      recipientId: subDealer.id,
+      recipientName: subDealer.name,
+      recipientRole: 'sub_dealer',
+      commissionType: 'flat',
+      commissionRate: 50,
+      commissionAmount: comAmount,
+      calculationBase: amount,
+      status: 'approved',
+      createdAt: new Date().toISOString(),
+    });
+    subDealer.commissionBalance = (subDealer.commissionBalance || 0) + comAmount;
+    subDealer.totalCommissionEarned = (subDealer.totalCommissionEarned || 0) + comAmount;
+  }
+
+  // 3. Main Dealer Commission (Flat 100)
+  if (dealer) {
+    const comAmount = 100;
+    newLedgers.push({
+      id: `LEDGER-${Math.floor(100000 + Math.random() * 900000)}`,
+      transactionId: txId,
+      recipientId: dealer.id,
+      recipientName: dealer.name,
+      recipientRole: 'dealer',
+      commissionType: 'flat',
+      commissionRate: 100,
+      commissionAmount: comAmount,
+      calculationBase: amount,
+      status: 'approved',
+      createdAt: new Date().toISOString(),
+    });
+    dealer.commissionBalance = (dealer.commissionBalance || 0) + comAmount;
+    dealer.totalCommissionEarned = (dealer.totalCommissionEarned || 0) + comAmount;
+  }
+
+  hierarchyTransactionsDb.unshift(newTx);
+  commissionLedgerDb = [...newLedgers, ...commissionLedgerDb];
+
+  auditLogsDb.unshift({
+    id: `log-${Date.now()}`,
+    action: 'TRANSACTION_PROCESSED',
+    entity: 'COMMISSIONS',
+    details: `Transaction ${txId} (৳${amount}) processed. Total ${newLedgers.length} commission ledger entries generated across hierarchy.`,
+    adminUser: (req as any).adminUser?.name || 'Admin',
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    message: 'ট্রানজেকশন সম্পন্ন হয়েছে এবং কমিশন ডিস্ট্রিবিউট করা হয়েছে।',
+    transaction: newTx,
+    ledgers: newLedgers,
+  });
 });
 
 // ---------------------------------------------
